@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="RoomHash — a room in a link. Messages move peer to peer over WebRTC and stay in your browser."
+    />
+    <title>RoomHash — a room in a link</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <h1>RoomHash</h1>
+        <p class="tagline">A room in a link. Messages move peer to peer.</p>
+      </header>
+
+      <section class="panel" aria-label="Room">
+        <div class="row">
+          <label>Room</label>
+          <code id="room-id">—</code>
+        </div>
+        <div class="row">
+          <label for="share-url">Share</label>
+          <input id="share-url" class="grow" type="text" readonly />
+          <button type="button" id="copy-link">Copy link</button>
+        </div>
+        <div class="row">
+          <label for="tracker-input">Tracker</label>
+          <input
+            id="tracker-input"
+            class="grow"
+            type="text"
+            spellcheck="false"
+            placeholder="wss://tracker.example.com"
+          />
+          <button type="button" id="apply-tracker">Apply</button>
+        </div>
+        <div class="row">
+          <label for="nick-input">Nickname</label>
+          <input id="nick-input" class="grow" type="text" maxlength="32" />
+          <button type="button" id="apply-nick">Set</button>
+        </div>
+        <div class="meta-bar">
+          <span>Peers: <strong id="peer-count">0</strong></span>
+          <span>Status: <strong id="status">idle</strong></span>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="Chat">
+        <div id="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
+        <div class="composer">
+          <textarea
+            id="message-input"
+            class="grow"
+            rows="2"
+            placeholder="Message the room…"
+            aria-label="Message"
+          ></textarea>
+          <div class="composer-actions">
+            <button type="button" id="attach-btn" title="Send image or file">📎 File</button>
+            <button type="button" id="send-btn" class="primary">Send</button>
+          </div>
+          <input id="file-input" type="file" />
+        </div>
+      </section>
+
+      <footer class="note">
+        All traffic after signaling is peer-to-peer (WebRTC). Signaling uses a public
+        WebTorrent-compatible tracker (<code>@trystero-p2p/torrent</code>). History is stored only in
+        this browser. Hard NATs may need a TURN server (not bundled). Open the same room link in two
+        tabs to try it.
+      </footer>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
