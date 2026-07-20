@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite'
 
-// Relative base so project pages (user.github.io/repo/) and file:// previews work.
+// RoomHash is deployed as the root user/organization Pages site.
 export default defineConfig({
-  base: './',
+  base: '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
