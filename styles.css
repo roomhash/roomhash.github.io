@@ -132,7 +132,7 @@ body.member-rail-collapsed #members-toggle { display: inline-grid; }
 .icon-button:hover { border-color: var(--accent); color: var(--accent); }
 .send-button { padding: 0 20px; border: 1px solid var(--accent); background: var(--accent); color: #18120a; border-radius: 10px; font-weight: 800; }
 .send-button:hover { background: var(--accent-strong); }
-#file-input, #torrent-file-input { display: none; }
+#file-input { display: none; }
 
 .rail-section + .rail-section { border-top: 1px solid var(--border); }
 .online-list { display: grid; gap: 6px; }

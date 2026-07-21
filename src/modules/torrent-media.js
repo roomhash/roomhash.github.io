@@ -178,7 +178,20 @@ async function openTorrentFile(doc, file, host) {
     video.preload = 'metadata'
     video.playsInline = true
     host.appendChild(video)
-    await file.streamTo(video)
+    const useBlobFallback = async () => {
+      video.src = await getBlobUrl(file)
+      video.load()
+    }
+    if (!navigator.serviceWorker?.controller) {
+      await useBlobFallback()
+      return
+    }
+    video.addEventListener('error', () => {
+      useBlobFallback().catch((error) => {
+        host.textContent = `Video fallback failed: ${error.message}`
+      })
+    }, { once: true })
+    file.streamTo(video)
     return
   }
   if (kind === 'image') {

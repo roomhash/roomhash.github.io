@@ -25,7 +25,7 @@ Pure-static **P2P chat rooms** for GitHub Pages. No app backend: only HTML/CSS/J
 - Envelopes carry a globally stable message ID, origin, creation time, and expiry time. A bounded LRU cache suppresses echoes and replay loops.
 - Chat envelopes stop forwarding 10 minutes after creation. Presence uses a shorter heartbeat expiry.
 - All peers forward messages when they bridge otherwise disconnected parts of the graph. A verified public node additionally applies the configured bandwidth and message-frequency limits.
-- Binary small-file actions remain direct-only. Magnet/module messages use the mesh; torrent data continues through the WebTorrent swarm.
+- The composer attachment button seeds every selected file through WebTorrent and sends a magnet/module message through the mesh. There is no separate direct-file upload path.
 
 ## Public reachability and UPnP
 

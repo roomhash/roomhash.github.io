@@ -250,7 +250,12 @@ async function startChannel(channelId) {
       },
       onError(error) {
         console.error(`[${channelId}]`, error)
-        state.status = `error: ${error.message}`
+        const pathFailure = /could not connect to peer|configure TURN servers/i.test(error.message)
+        state.status = pathFailure
+          ? state.directPeers.size
+            ? `partial mesh: ${state.directPeers.size} direct; another path failed`
+            : 'waiting for a reachable peer or mesh relay'
+          : `error: ${error.message}`
         if (channelId === activeChannel) ui?.setStatus(state.status)
       },
       onStatus(status) {
@@ -405,19 +410,6 @@ async function boot() {
       } else {
         await session.sendText(text)
       }
-    },
-    async onSendFile(file) {
-      const session = activeSession()
-      if (!session) throw new Error('channel is still connecting')
-      ui?.setStatus(`sending ${file.name}`)
-      const bytes = new Uint8Array(await file.arrayBuffer())
-      await session.sendFile({
-        name: file.name,
-        mime: file.type || 'application/octet-stream',
-        size: file.size,
-        bytes
-      })
-      ui?.setStatus('file sent')
     },
     async onSeedFiles(files) {
       const session = activeSession()

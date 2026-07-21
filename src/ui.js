@@ -117,8 +117,6 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     sendBtn: byId('send-btn'),
     fileInput: byId('file-input'),
     attachBtn: byId('attach-btn'),
-    torrentSeedBtn: byId('torrent-seed-btn'),
-    torrentFileInput: byId('torrent-file-input'),
     torrentPreload: byId('torrent-preload'),
     onlineList: byId('online-list'),
     settingsDialog: byId('settings-dialog'),
@@ -196,15 +194,9 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
 
   els.attachBtn?.addEventListener('click', () => els.fileInput?.click())
   els.fileInput?.addEventListener('change', () => {
-    const file = els.fileInput?.files?.[0]
-    if (file) run(() => handlers.onSendFile?.(file))
-    els.fileInput.value = ''
-  })
-  els.torrentSeedBtn?.addEventListener('click', () => els.torrentFileInput?.click())
-  els.torrentFileInput?.addEventListener('change', () => {
-    const files = els.torrentFileInput?.files
+    const files = els.fileInput?.files
     if (files?.length) run(() => handlers.onSeedFiles?.(files))
-    els.torrentFileInput.value = ''
+    els.fileInput.value = ''
   })
   els.torrentPreload?.addEventListener('change', () => handlers.onTorrentPreloadChange?.(els.torrentPreload.checked))
   els.autoAddChannels?.addEventListener('change', () => handlers.onAutoAddChannelsChange?.(els.autoAddChannels.checked))
