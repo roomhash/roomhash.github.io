@@ -94,6 +94,22 @@ export function saveChannels(channels) {
   store.setItem(key('channels'), JSON.stringify([...new Set(channels)]))
 }
 
+export function loadChannelNames() {
+  try {
+    const value = JSON.parse(store.getItem(key('channel-names')) || '{}')
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+    return Object.fromEntries(
+      Object.entries(value).filter(([, name]) => typeof name === 'string')
+    )
+  } catch {
+    return {}
+  }
+}
+
+export function saveChannelNames(names) {
+  store.setItem(key('channel-names'), JSON.stringify(names))
+}
+
 export function loadDiscoveredChannels() {
   return loadStringArray('discovered-channels')
 }

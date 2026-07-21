@@ -3,90 +3,90 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="RoomHash is a decentralized multi-channel chat and media mesh." />
+    <meta name="description" content="RoomHash is a decentralized multi-channel chat and media mesh." data-i18n-content="meta.description" />
     <title>RoomHash</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <a class="skip-link" href="#messages">Skip to messages</a>
+    <a class="skip-link" href="#messages" data-i18n="nav.skipMessages">Skip to messages</a>
     <div class="workspace">
-      <aside class="channel-rail" aria-label="Channels">
+      <aside class="channel-rail" aria-label="Channels" data-i18n-aria-label="aria.channels">
         <header class="brand-block">
           <div class="brand-mark" aria-hidden="true">RH</div>
-          <div class="brand-copy"><h1>RoomHash</h1><p>Peer mesh workspace</p></div>
-          <button id="collapse-sidebar" class="rail-collapse" type="button" aria-label="Collapse channel sidebar" aria-expanded="true">
+          <div class="brand-copy"><h1>RoomHash</h1><p data-i18n="brand.tagline">Peer mesh workspace</p></div>
+          <button id="collapse-sidebar" class="rail-collapse" type="button" aria-label="Collapse channel sidebar" aria-expanded="true" data-i18n-aria-label="aria.collapseChannelSidebar">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
           </button>
         </header>
         <section class="channel-section">
           <div class="section-heading">
-            <span>Channels</span>
+            <span data-i18n="channels.label">Channels</span>
             <div class="section-heading-actions">
-              <span class="section-kicker">local</span>
-              <button id="collapse-channel-list" class="section-collapse" type="button" aria-label="Collapse channel list" aria-expanded="true">
+              <span class="section-kicker" data-i18n="channels.local">local</span>
+              <button id="collapse-channel-list" class="section-collapse" type="button" aria-label="Collapse channel list" aria-expanded="true" data-i18n-aria-label="aria.collapseChannelList">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
               </button>
             </div>
           </div>
           <div class="channel-list-content">
             <div id="channel-list" class="channel-list"></div>
-            <label class="field-label" for="channel-input">Add channel UUID</label>
+            <label class="field-label" for="channel-input" data-i18n="channels.addLabel">Add channel UUID</label>
             <div class="channel-add-row">
               <input id="channel-input" type="text" spellcheck="false" placeholder="xxxxxxxx-xxxx-..." />
-              <button id="add-channel" type="button" aria-label="Add channel">+</button>
+              <button id="add-channel" type="button" aria-label="Add channel" data-i18n-aria-label="channels.add">+</button>
             </div>
             <p id="channel-error" class="field-error" role="alert"></p>
           </div>
         </section>
         <section class="channel-section discovered-section">
-          <div class="section-heading"><span>Discovered</span><span class="section-kicker">mesh</span></div>
+          <div class="section-heading"><span data-i18n="channels.discovered">Discovered</span><span class="section-kicker" data-i18n="common.mesh">mesh</span></div>
           <div id="discovered-list" class="discovered-list">
-            <p class="empty-hint">No channels discovered yet.</p>
+            <p class="empty-hint" data-i18n="channels.noneDiscovered">No channels discovered yet.</p>
           </div>
         </section>
         <button id="open-settings" class="settings-trigger" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6V20h-4v-.09a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1H4v-4h.09a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6V4h4v.09a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.08.37.29.72.6 1H20v4h-.09c-.31.28-.52.63-.6 1Z"/></svg>
-          Settings
+          <span data-i18n="common.settings">Settings</span>
         </button>
       </aside>
 
       <main class="chat-shell">
         <header class="chat-header">
-          <button id="nav-toggle" class="icon-button mobile-only" type="button" aria-label="Open channels">
+          <button id="nav-toggle" class="icon-button mobile-only" type="button" aria-label="Open channels" data-i18n-aria-label="aria.openChannels">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
           </button>
-          <div class="channel-identity"><strong id="room-id">#--------</strong><span>A room carried by its peers</span></div>
+          <div class="channel-identity"><strong id="room-id">#--------</strong><span id="room-context" data-i18n="room.context">A room carried by its peers</span></div>
           <div class="connection-summary">
             <span class="live-dot" aria-hidden="true"></span>
-            <span><strong id="peer-count">0</strong> direct</span>
-            <span id="status">initializing</span>
+            <span><strong id="peer-count">0</strong> <span data-i18n="connection.direct">direct</span></span>
+            <span id="status" data-i18n="status.initializing">initializing</span>
           </div>
-          <button id="members-toggle" class="icon-button mobile-only" type="button" aria-label="Open members">
+          <button id="members-toggle" class="icon-button mobile-only" type="button" aria-label="Open members" data-i18n-aria-label="aria.openMembers">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </button>
         </header>
 
         <section id="messages" class="messages" role="log" aria-live="polite" aria-relevant="additions"></section>
 
-        <section class="composer-wrap" aria-label="Message composer">
-          <textarea id="message-input" rows="1" placeholder="Message this channel" aria-label="Message"></textarea>
+        <section class="composer-wrap" aria-label="Message composer" data-i18n-aria-label="aria.composer">
+          <textarea id="message-input" rows="1" placeholder="Message this channel" aria-label="Message" data-i18n-placeholder="composer.placeholder" data-i18n-aria-label="aria.message"></textarea>
           <div class="composer-actions">
-            <button id="attach-btn" class="icon-button" type="button" title="Seed and share files" aria-label="Seed and share files">
+            <button id="attach-btn" class="icon-button" type="button" title="Seed and share files" aria-label="Seed and share files" data-i18n-title="composer.attach" data-i18n-aria-label="composer.attach">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
-            <button id="send-btn" class="send-button" type="button">Send</button>
+            <button id="send-btn" class="send-button" type="button" data-i18n="common.send">Send</button>
           </div>
           <input id="file-input" type="file" multiple />
         </section>
       </main>
 
-      <aside class="member-rail" aria-label="Members and network">
+      <aside class="member-rail" aria-label="Members and network" data-i18n-aria-label="aria.membersNetwork">
         <section class="rail-section members-section">
           <div class="section-heading">
-            <span>Online</span>
+            <span data-i18n="members.online">Online</span>
             <div class="section-heading-actions">
-              <span class="section-kicker">mesh</span>
-              <button id="collapse-members" class="section-collapse" type="button" aria-label="Collapse member sidebar" aria-expanded="true">
+              <span class="section-kicker" data-i18n="common.mesh">mesh</span>
+              <button id="collapse-members" class="section-collapse" type="button" aria-label="Collapse member sidebar" aria-expanded="true" data-i18n-aria-label="aria.collapseMembers">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
               </button>
             </div>
@@ -94,48 +94,52 @@
           <div id="online-list" class="online-list"></div>
         </section>
         <section class="rail-section network-card">
-          <div class="section-heading"><span>Relay state</span></div>
-          <strong id="public-state" class="public-state">Private / unknown</strong>
-          <p id="public-detail">Browser reachability is inferred conservatively.</p>
-        </section>
-        <section class="rail-section media-tools">
-          <div class="section-heading"><span>Media swarm</span></div>
-          <p class="helper">Use the attachment button beside the composer to seed and share files.</p>
-          <label class="toggle-row" for="torrent-preload"><input id="torrent-preload" type="checkbox" /><span>Auto-preload torrents</span></label>
+          <div class="section-heading"><span data-i18n="relay.state">Relay state</span></div>
+          <strong id="public-state" class="public-state" data-i18n="relay.private">Private / unknown</strong>
+          <p id="public-detail" data-i18n="relay.browserDetail">Browser reachability is inferred conservatively.</p>
         </section>
       </aside>
     </div>
 
     <dialog id="settings-dialog" class="settings-dialog">
-      <form method="dialog" class="settings-head"><div><span class="eyebrow">RoomHash node</span><h2>Settings</h2></div><button id="close-settings" class="icon-button" type="button" aria-label="Close settings">x</button></form>
+      <form method="dialog" class="settings-head"><div><span class="eyebrow" data-i18n="settings.node">RoomHash node</span><h2 data-i18n="common.settings">Settings</h2></div><button id="close-settings" class="icon-button" type="button" aria-label="Close settings" data-i18n-aria-label="aria.closeSettings">x</button></form>
       <div class="settings-grid">
         <section class="settings-section">
-          <h3>Identity and discovery</h3>
-          <label for="nick-input">Nickname</label>
-          <div class="input-action"><input id="nick-input" type="text" maxlength="32" /><button id="apply-nick" type="button">Apply</button></div>
-          <label for="tracker-input">Signaling tracker</label>
-          <div class="input-action"><input id="tracker-input" type="text" spellcheck="false" /><button id="apply-tracker" type="button">Apply</button></div>
-          <label for="share-url">Current channel link</label>
-          <div class="input-action"><input id="share-url" type="text" readonly /><button id="copy-link" type="button">Copy</button></div>
+          <h3 data-i18n="settings.identity">Identity and discovery</h3>
+          <label for="language-select" data-i18n="settings.language">Language</label>
+          <select id="language-select"><option value="auto" data-i18n="settings.languageAuto">Auto (browser)</option><option value="zh-CN">简体中文</option><option value="en">English</option></select>
+          <label for="nick-input" data-i18n="settings.nickname">Nickname</label>
+          <div class="input-action"><input id="nick-input" type="text" maxlength="32" /><button id="apply-nick" type="button" data-i18n="common.apply">Apply</button></div>
+          <label for="tracker-input" data-i18n="settings.tracker">Signaling tracker</label>
+          <div class="input-action"><input id="tracker-input" type="text" spellcheck="false" /><button id="apply-tracker" type="button" data-i18n="common.apply">Apply</button></div>
+          <label for="share-url" data-i18n="settings.currentLink">Current channel link</label>
+          <div class="input-action"><input id="share-url" type="text" readonly /><button id="copy-link" type="button" data-i18n="common.copy">Copy</button></div>
+          <label for="channel-name-input"><span data-i18n="settings.channelName">Channel name</span> <span data-i18n="common.optional">(optional)</span></label>
+          <div class="input-action"><input id="channel-name-input" type="text" maxlength="40" placeholder="e.g. general" data-i18n-placeholder="settings.channelNamePlaceholder" /><button id="apply-channel-name" type="button" data-i18n="common.rename">Rename</button></div>
         </section>
         <section class="settings-section">
-          <h3>Channel exchange</h3>
-          <label class="toggle-row" for="auto-add-channels"><input id="auto-add-channels" type="checkbox" /><span>Automatically add channels received from the mesh</span></label>
-          <p class="helper">Off by default. Discovered UUIDs remain reviewable in the channel rail.</p>
+          <h3 data-i18n="settings.channelExchange">Channel exchange</h3>
+          <label class="toggle-row" for="auto-add-channels"><input id="auto-add-channels" type="checkbox" /><span data-i18n="settings.autoAdd">Automatically add channels received from the mesh</span></label>
+          <p class="helper" data-i18n="settings.autoAddHelp">Off by default. Discovered UUIDs remain reviewable in the channel rail.</p>
         </section>
         <section class="settings-section">
-          <h3>Public relay limits</h3>
+          <h3 data-i18n="settings.mediaSwarm">Media swarm</h3>
+          <label class="toggle-row" for="torrent-preload"><input id="torrent-preload" type="checkbox" /><span data-i18n="settings.autoPreload">Automatically preload shared torrents</span></label>
+          <p class="helper" data-i18n="settings.mediaHelp">Attachments selected beside the composer are seeded and shared as torrent media cards.</p>
+        </section>
+        <section class="settings-section">
+          <h3 data-i18n="settings.relayLimits">Public relay limits</h3>
           <div class="settings-columns">
-            <label for="relay-bandwidth">Bandwidth <span>KB/s</span><input id="relay-bandwidth" type="number" min="0" max="102400" /></label>
-            <label for="relay-frequency">Frequency <span>messages/s</span><input id="relay-frequency" type="number" min="0" max="1000" /></label>
+            <label for="relay-bandwidth"><span data-i18n="settings.bandwidth">Bandwidth</span> <span>KB/s</span><input id="relay-bandwidth" type="number" min="0" max="102400" /></label>
+            <label for="relay-frequency"><span data-i18n="settings.frequency">Frequency</span> <span data-i18n="settings.messagesPerSecond">messages/s</span><input id="relay-frequency" type="number" min="0" max="1000" /></label>
           </div>
-          <button id="apply-relay" type="button">Save relay limits</button>
+          <button id="apply-relay" type="button" data-i18n="common.saveRelay">Save relay limits</button>
           <p id="relay-effective" class="helper"></p>
         </section>
         <section class="settings-section">
-          <h3>UPnP capability module</h3>
-          <p class="helper">Available only when a desktop or headless RoomHash host supplies port mapping and an external reachability probe.</p>
-          <button id="enable-upnp" type="button" disabled>Open temporary port and probe</button>
+          <h3 data-i18n="settings.upnp">UPnP capability module</h3>
+          <p class="helper" data-i18n="settings.upnpHelp">Available only when a desktop or headless RoomHash host supplies port mapping and an external reachability probe.</p>
+          <button id="enable-upnp" type="button" disabled data-i18n="settings.upnpOpen">Open temporary port and probe</button>
         </section>
       </div>
       <p id="settings-error" class="field-error" role="alert"></p>

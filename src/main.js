@@ -2,14 +2,17 @@
 
 import { DEFAULT_TRACKER, DEFAULT_TORRENT_TRACKERS } from './config.js'
 import {
-  buildShareUrl,
-  encodeRoomHash,
   generateRoomId,
   isDefaultTracker,
   normalizeTracker,
-  resolveRoomFromHash,
   validateTrackerUrl
 } from './room-url.js'
+import {
+  buildNamedShareUrl,
+  encodeNamedRoomHash,
+  normalizeChannelName,
+  resolveNamedRoomFromHash
+} from './channel-url.js'
 import { normalizeNickname, resolveNickname } from './nickname.js'
 import { createMeshSession } from './network/mesh-session.js'
 import { RelayLimiter } from './network/gossip.js'
@@ -17,6 +20,7 @@ import { RuntimeCapabilities } from './network/runtime-capabilities.js'
 import {
   appendMessage,
   loadAutoAddChannels,
+  loadChannelNames,
   loadChannels,
   loadDiscoveredChannels,
   loadMessages,
@@ -25,6 +29,7 @@ import {
   loadRelaySettings,
   loadTorrentPreload,
   saveAutoAddChannels,
+  saveChannelNames,
   saveChannels,
   saveDiscoveredChannels,
   saveNickname,
@@ -33,6 +38,7 @@ import {
   saveTorrentPreload
 } from './storage.js'
 import { bindUi } from './ui.js'
+import { localizeError, setLanguagePreference, t } from './i18n.js'
 import { MessageModuleRegistry } from './modules/registry.js'
 import {
   TORRENT_MEDIA_MODULE,
@@ -43,6 +49,7 @@ import {
 
 const CHANNEL_LIMIT = 32
 const MEMBER_SWEEP_MS = 10_000
+const PRESENCE_AGGREGATE_MS = 2 * 60 * 1000
 const CHANNEL_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 let ui = null
@@ -53,6 +60,7 @@ let autoAddChannels = loadAutoAddChannels()
 let relaySettings = loadRelaySettings()
 
 const channels = new Set()
+const channelNames = loadChannelNames()
 const discoveredChannels = new Set(loadDiscoveredChannels())
 const sessions = new Map()
 const startingSessions = new Map()
@@ -79,6 +87,7 @@ function stateFor(channelId) {
       directPeers: new Set(),
       members: new Map(),
       pendingJoins: new Set(),
+      presenceSummary: null,
       unread: 0,
       selfId: ''
     })
@@ -87,11 +96,18 @@ function stateFor(channelId) {
 }
 
 function advertisedChannels() {
-  return [...new Set([...channels, ...discoveredChannels])].slice(0, 100)
+  return [...new Set([...channels, ...discoveredChannels])].slice(0, 100).map((id) => ({
+    id,
+    name: channelNames[id] || ''
+  }))
 }
 
 function applyHash(channelId, mode = 'replace') {
-  const hash = encodeRoomHash({ roomId: channelId, tracker })
+  const hash = encodeNamedRoomHash({
+    roomId: channelId,
+    tracker,
+    channelName: channelNames[channelId] || ''
+  })
   const url = `${location.pathname}${location.search}#${hash}`
   if (location.hash === `#${hash}`) return
   if (mode === 'push') history.pushState(null, '', url)
@@ -99,11 +115,16 @@ function applyHash(channelId, mode = 'replace') {
 }
 
 function shareUrl(channelId = activeChannel) {
-  return buildShareUrl({ roomId: channelId, tracker })
+  return buildNamedShareUrl({
+    roomId: channelId,
+    tracker,
+    channelName: channelNames[channelId] || ''
+  })
 }
 
 function persistChannelSets() {
   saveChannels([...channels])
+  saveChannelNames(channelNames)
   saveDiscoveredChannels([...discoveredChannels])
 }
 
@@ -112,6 +133,7 @@ function renderChannels() {
     channels: [...channels],
     discovered: [...discoveredChannels].filter((id) => !channels.has(id)),
     activeChannel,
+    names: channelNames,
     unread: Object.fromEntries([...channelStates].map(([id, state]) => [id, state.unread]))
   })
 }
@@ -128,7 +150,8 @@ function renderMembers() {
 function renderActiveChannel({ clearMessages = false } = {}) {
   if (!activeChannel) return
   const state = stateFor(activeChannel)
-  ui?.setRoomId(activeChannel)
+  ui?.setRoomId(activeChannel, channelNames[activeChannel] || '')
+  ui?.setChannelName(channelNames[activeChannel] || '')
   ui?.setShareUrl(shareUrl())
   ui?.setPeerCount(state.directPeers.size)
   ui?.setStatus(state.status)
@@ -138,12 +161,53 @@ function renderActiveChannel({ clearMessages = false } = {}) {
   if (clearMessages) {
     ui?.clearMessages()
     for (const message of loadMessages(activeChannel)) ui?.addMessage(message)
+    if (state.presenceSummary) {
+      ui?.upsertSystemMessage({
+        id: state.presenceSummary.id,
+        type: 'system',
+        nickname: 'system',
+        ts: Date.now(),
+        text: presenceSummaryText(state.presenceSummary),
+        omitTime: true
+      })
+    }
   }
 }
 
-function systemMessage(channelId, id, text) {
+function presenceSummaryText(summary) {
+  const joined = []
+  const left = []
+  for (const [name, event] of summary.events) {
+    const label = event.mesh && event.type === 'joined' ? t('presence.mesh', { name }) : name
+    if (event.type === 'joined') joined.push(label)
+    else left.push(label)
+  }
+  return [
+    joined.length ? t('presence.joined', { names: joined.join(', ') }) : '',
+    left.length ? t('presence.left', { names: left.join(', ') }) : ''
+  ].filter(Boolean).join(t('presence.separator'))
+}
+
+function queuePresenceChange(channelId, peerNickname, type, mesh = false) {
+  const state = stateFor(channelId)
+  const now = Date.now()
+  if (!state.presenceSummary || now - state.presenceSummary.startedAt >= PRESENCE_AGGREGATE_MS) {
+    state.presenceSummary = {
+      id: `presence-summary:${channelId}:${now}`,
+      startedAt: now,
+      events: new Map()
+    }
+  }
+  state.presenceSummary.events.set(peerNickname, { type, mesh, at: now })
   if (channelId !== activeChannel) return
-  ui?.addMessage({ id, type: 'system', nickname: 'system', ts: Date.now(), text })
+  ui?.upsertSystemMessage({
+    id: state.presenceSummary.id,
+    type: 'system',
+    nickname: 'system',
+    ts: now,
+    text: presenceSummaryText(state.presenceSummary),
+    omitTime: true
+  })
 }
 
 function updatePublicStatus(status = runtimeCapabilities.publicStatus) {
@@ -152,9 +216,17 @@ function updatePublicStatus(status = runtimeCapabilities.publicStatus) {
 }
 
 function receiveChannels(values) {
-  const incoming = [...new Set(values)].filter(isChannelId)
+  const incoming = values.map((value) => typeof value === 'string'
+    ? { id: value, name: '' }
+    : { id: value?.id, name: normalizeChannelName(value?.name).name }
+  ).filter((entry) => isChannelId(entry.id))
   let changed = false
-  for (const channelId of incoming) {
+  for (const entry of incoming) {
+    const channelId = entry.id
+    if (entry.name && !channelNames[channelId]) {
+      channelNames[channelId] = entry.name
+      changed = true
+    }
     if (channels.has(channelId) || discoveredChannels.has(channelId)) continue
     changed = true
     if (autoAddChannels && channels.size < CHANNEL_LIMIT) {
@@ -191,7 +263,7 @@ async function startChannel(channelId) {
         state.directPeers.add(peerId)
         state.pendingJoins.add(peerId)
         state.members.set(peerId, {
-          nickname: `Peer ${peerId.slice(0, 6)}`,
+          nickname: `${t('members.peer')} ${peerId.slice(0, 6)}`,
           direct: true,
           expiresAt: Date.now() + 60_000
         })
@@ -206,7 +278,7 @@ async function startChannel(channelId) {
           expiresAt: Date.now() + 60_000
         })
         if (state.pendingJoins.delete(peerId)) {
-          systemMessage(channelId, `join:${peerId}:${Date.now()}`, `${peerNickname} joined`)
+          queuePresenceChange(channelId, peerNickname, 'joined')
         }
         if (channelId === activeChannel) renderMembers()
       },
@@ -226,7 +298,7 @@ async function startChannel(channelId) {
           expiresAt: member.expiresAt
         })
         if (!existing && !state.pendingJoins.has(member.id)) {
-          systemMessage(channelId, `mesh-join:${member.id}:${Date.now()}`, `${member.nickname} joined via mesh`)
+          queuePresenceChange(channelId, member.nickname, 'joined', true)
         }
         if (channelId === activeChannel) renderMembers()
       },
@@ -253,9 +325,9 @@ async function startChannel(channelId) {
         const pathFailure = /could not connect to peer|configure TURN servers/i.test(error.message)
         state.status = pathFailure
           ? state.directPeers.size
-            ? `partial mesh: ${state.directPeers.size} direct; another path failed`
-            : 'waiting for a reachable peer or mesh relay'
-          : `error: ${error.message}`
+            ? { key: 'status.partialMesh', values: { count: state.directPeers.size } }
+            : { key: 'status.waitingRelay' }
+          : { key: 'status.error', values: { message: localizeError(error) } }
         if (channelId === activeChannel) ui?.setStatus(state.status)
       },
       onStatus(status) {
@@ -288,13 +360,15 @@ async function restartChannels() {
   await Promise.allSettled([...channels].map(startChannel))
 }
 
-async function addChannel(channelId, { activate = true } = {}) {
+async function addChannel(channelId, { activate = true, name = '' } = {}) {
   const id = String(channelId || '').trim().toLowerCase()
   if (!isChannelId(id)) throw new Error('channel must be a valid UUID')
   if (!channels.has(id) && channels.size >= CHANNEL_LIMIT) {
     throw new Error(`channel limit reached (${CHANNEL_LIMIT})`)
   }
   channels.add(id)
+  const normalizedName = normalizeChannelName(name)
+  if (normalizedName.ok && normalizedName.name) channelNames[id] = normalizedName.name
   discoveredChannels.delete(id)
   persistChannelSets()
   renderChannels()
@@ -321,6 +395,7 @@ function removeChannel(channelId) {
   channels.delete(channelId)
   channelStates.delete(channelId)
   discoveredChannels.delete(channelId)
+  delete channelNames[channelId]
   if (!channels.size) channels.add(generateRoomId())
   persistChannelSets()
   if (activeChannel === channelId) {
@@ -336,8 +411,9 @@ function activeSession() {
 }
 
 async function boot() {
-  const resolved = resolveRoomFromHash(location.hash)
+  const resolved = resolveNamedRoomFromHash(location.hash)
   activeChannel = resolved.roomId
+  if (resolved.channelName) channelNames[activeChannel] = resolved.channelName
   const savedTracker = validateTrackerUrl(loadPreferredTracker() || DEFAULT_TRACKER)
   tracker = !isDefaultTracker(resolved.tracker) || location.hash.includes('tracker=')
     ? resolved.tracker
@@ -357,7 +433,7 @@ async function boot() {
     async onAddChannel(value) {
       try {
         await addChannel(value)
-        ui?.setStatus('channel added')
+        ui?.setStatus({ key: 'status.channelAdded' })
       } catch (error) {
         ui?.setChannelError(error.message)
       }
@@ -368,9 +444,28 @@ async function boot() {
     onCopyLink() {
       const url = shareUrl()
       navigator.clipboard?.writeText(url).then(
-        () => ui?.setStatus('link copied'),
-        () => ui?.setStatus('copy failed; select the share URL')
+        () => ui?.setStatus({ key: 'status.linkCopied' }),
+        () => ui?.setStatus({ key: 'status.copyFailed' })
       )
+    },
+    onCopyChannelUrl(channelId) {
+      navigator.clipboard?.writeText(shareUrl(channelId)).then(
+        () => ui?.setStatus({ key: 'status.channelLinkCopied' }),
+        () => ui?.setStatus({ key: 'status.channelCopyFailed' })
+      )
+    },
+    onChannelNameChange(value) {
+      const result = normalizeChannelName(value)
+      if (!result.ok) {
+        ui?.setSettingsError(result.error)
+        return
+      }
+      if (result.name) channelNames[activeChannel] = result.name
+      else delete channelNames[activeChannel]
+      saveChannelNames(channelNames)
+      applyHash(activeChannel)
+      renderActiveChannel()
+      for (const session of sessions.values()) session.broadcastChannels()
     },
     onTrackerChange(value) {
       const validated = validateTrackerUrl(value || DEFAULT_TRACKER)
@@ -397,6 +492,12 @@ async function boot() {
       ui?.setNickname(nickname)
       renderMembers()
     },
+    onLanguageChange(value) {
+      setLanguagePreference(value)
+      ui?.translate()
+      renderActiveChannel({ clearMessages: true })
+      updatePublicStatus()
+    },
     async onSendText(text) {
       const session = activeSession()
       if (!session) throw new Error('channel is still connecting')
@@ -405,7 +506,7 @@ async function boot() {
       if (isMagnetUri(trimmed)) {
         await session.sendModule(TORRENT_MEDIA_MODULE, {
           magnet: trimmed,
-          title: 'Shared magnet link'
+          title: ''
         })
       } else {
         await session.sendText(text)
@@ -414,7 +515,7 @@ async function boot() {
     async onSeedFiles(files) {
       const session = activeSession()
       if (!session) throw new Error('channel is still connecting')
-      ui?.setStatus('creating torrent')
+      ui?.setStatus({ key: 'status.creatingTorrent' })
       const torrent = await torrentMedia.seed(files)
       await session.sendModule(TORRENT_MEDIA_MODULE, {
         magnet: torrent.magnetURI,
@@ -425,7 +526,7 @@ async function boot() {
           mime: file.type || ''
         }))
       })
-      ui?.setStatus('torrent published; keep this tab open to seed')
+      ui?.setStatus({ key: 'status.torrentPublished' })
     },
     onTorrentPreloadChange(enabled) {
       torrentMedia.setAutoPreload(enabled)
@@ -448,7 +549,7 @@ async function boot() {
     },
     async onEnableUpnp() {
       try {
-        ui?.setPublicStatus({ state: 'checking', public: false, detail: 'Opening a temporary UPnP mapping and probing it.' })
+        ui?.setPublicStatus({ state: 'checking', public: false, detailKey: 'status.upnpChecking' })
         const status = await runtimeCapabilities.enableUpnp()
         updatePublicStatus(status)
         for (const session of sessions.values()) session.refreshPublicStatus()
@@ -467,10 +568,10 @@ async function boot() {
   renderActiveChannel({ clearMessages: true })
 
   window.addEventListener('hashchange', () => {
-    const next = resolveRoomFromHash(location.hash)
+    const next = resolveNamedRoomFromHash(location.hash)
     if (next.roomId === activeChannel && normalizeTracker(next.tracker) === tracker) return
     tracker = next.tracker
-    addChannel(next.roomId, { activate: false }).then(() => {
+    addChannel(next.roomId, { activate: false, name: next.channelName }).then(() => {
       switchChannel(next.roomId, { historyMode: 'replace' })
     })
   })
@@ -484,7 +585,7 @@ async function boot() {
       for (const [peerId, member] of state.members) {
         if (member.direct || member.expiresAt > now) continue
         state.members.delete(peerId)
-        systemMessage(channelId, `left:${peerId}:${now}`, `${member.nickname} left`)
+        queuePresenceChange(channelId, member.nickname, 'left')
       }
     }
     renderMembers()
@@ -494,5 +595,5 @@ async function boot() {
 boot().catch((error) => {
   console.error('boot failed', error)
   const status = document.getElementById('status')
-  if (status) status.textContent = `boot failed: ${error?.message || error}`
+  if (status) status.textContent = t('status.bootFailed', { message: localizeError(error) })
 })

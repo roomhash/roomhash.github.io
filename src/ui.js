@@ -1,6 +1,7 @@
 /** RoomHash DOM rendering and workspace controls. */
 
 import { normalizeMimeType } from './message.js'
+import { applyDocumentTranslations, getLanguage, getLanguagePreference, localizeError, statusText, t } from './i18n.js'
 
 export function escapeHtml(value) {
   return String(value)
@@ -22,7 +23,7 @@ export function safeDataUrl(value, expectedMime) {
 
 export function formatTime(ts) {
   try {
-    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    return new Date(ts).toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit' })
   } catch {
     return ''
   }
@@ -34,7 +35,7 @@ export function shortHash(value, length = 6) {
 
 export function renderMessageHtml(msg) {
   const time = formatTime(msg.ts)
-  const who = escapeHtml(msg.nickname || 'Peer')
+  const who = escapeHtml(msg.nickname || t('members.peer'))
   const cls = [
     'msg',
     msg.local ? 'msg-local' : 'msg-remote',
@@ -43,7 +44,8 @@ export function renderMessageHtml(msg) {
   ].filter(Boolean).join(' ')
 
   if (msg.type === 'system') {
-    return `<div class="${cls}" data-id="${escapeHtml(msg.id)}"><span class="msg-time">${time}</span> ${escapeHtml(msg.text || '')}</div>`
+    const timeHtml = msg.omitTime ? '' : `<span class="msg-time">${time}</span> `
+    return `<div class="${cls}" data-id="${escapeHtml(msg.id)}">${timeHtml}<span class="msg-system-text">${escapeHtml(msg.text || '')}</span></div>`
   }
 
   if (msg.type === 'file' && msg.file) {
@@ -54,8 +56,8 @@ export function renderMessageHtml(msg) {
     const body = mime.startsWith('image/') && dataUrl
       ? `<img class="msg-image" src="${safeUrl}" alt="${name}" />`
       : dataUrl
-        ? `<a class="msg-file-link" href="${safeUrl}" download="${name}">${name}</a> <span class="msg-meta">${msg.file.size} bytes</span>`
-        : `<span class="msg-file-link">${name}</span> <span class="msg-meta">${msg.file.size} bytes</span>`
+        ? `<a class="msg-file-link" href="${safeUrl}" download="${name}">${name}</a> <span class="msg-meta">${escapeHtml(t('message.bytes', { size: msg.file.size }))}</span>`
+        : `<span class="msg-file-link">${name}</span> <span class="msg-meta">${escapeHtml(t('message.bytes', { size: msg.file.size }))}</span>`
     return `<article class="${cls}" data-id="${escapeHtml(msg.id)}">
       <div class="msg-head"><span class="msg-nick">${who}</span><span class="msg-time">${time}</span></div>
       <div class="msg-body">${body}</div>
@@ -65,7 +67,7 @@ export function renderMessageHtml(msg) {
   if (msg.type === 'module') {
     return `<article class="${cls}" data-id="${escapeHtml(msg.id)}">
       <div class="msg-head"><span class="msg-nick">${who}</span><span class="msg-time">${time}</span></div>
-      <div class="msg-body msg-module-fallback">Unsupported message module: ${escapeHtml(msg.module || 'unknown')}</div>
+      <div class="msg-body msg-module-fallback">${escapeHtml(t('message.unsupportedModule', { module: msg.module || 'unknown' }))}</div>
     </article>`
   }
 
@@ -104,8 +106,11 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     addChannel: byId('add-channel'),
     channelError: byId('channel-error'),
     roomId: byId('room-id'),
+    roomContext: byId('room-context'),
     shareUrl: byId('share-url'),
     copyLink: byId('copy-link'),
+    channelNameInput: byId('channel-name-input'),
+    applyChannelName: byId('apply-channel-name'),
     trackerInput: byId('tracker-input'),
     applyTracker: byId('apply-tracker'),
     nickInput: byId('nick-input'),
@@ -136,7 +141,11 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     ,collapseSidebar: byId('collapse-sidebar')
     ,collapseChannelList: byId('collapse-channel-list')
     ,collapseMembers: byId('collapse-members')
+    ,languageSelect: byId('language-select')
   }
+
+  applyDocumentTranslations(doc)
+  if (els.languageSelect) els.languageSelect.value = getLanguagePreference()
 
   const layoutStore = doc.defaultView?.localStorage
   const isNarrow = () => doc.defaultView?.matchMedia?.('(max-width: 720px)').matches
@@ -148,9 +157,15 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     try { return layoutStore?.getItem(`roomhash:layout:${key}`) === 'true' } catch { return false }
   }
   const syncCollapseAria = () => {
-    els.collapseSidebar?.setAttribute('aria-expanded', String(!doc.body.classList.contains('channel-rail-collapsed')))
-    els.collapseChannelList?.setAttribute('aria-expanded', String(!doc.body.classList.contains('channel-list-collapsed')))
-    els.collapseMembers?.setAttribute('aria-expanded', String(!doc.body.classList.contains('member-rail-collapsed')))
+    const sidebarExpanded = !doc.body.classList.contains('channel-rail-collapsed')
+    const channelListExpanded = !doc.body.classList.contains('channel-list-collapsed')
+    const membersExpanded = !doc.body.classList.contains('member-rail-collapsed')
+    els.collapseSidebar?.setAttribute('aria-expanded', String(sidebarExpanded))
+    els.collapseSidebar?.setAttribute('aria-label', t(sidebarExpanded ? 'aria.collapseChannelSidebar' : 'aria.expandChannelSidebar'))
+    els.collapseChannelList?.setAttribute('aria-expanded', String(channelListExpanded))
+    els.collapseChannelList?.setAttribute('aria-label', t(channelListExpanded ? 'aria.collapseChannelList' : 'aria.expandChannelList'))
+    els.collapseMembers?.setAttribute('aria-expanded', String(membersExpanded))
+    els.collapseMembers?.setAttribute('aria-label', t(membersExpanded ? 'aria.collapseMembers' : 'aria.expandMembers'))
   }
   if (!isNarrow() && restoreLayout('channel-rail')) doc.body.classList.add('channel-rail-collapsed')
   if (!isCompact() && restoreLayout('member-rail')) doc.body.classList.add('member-rail-collapsed')
@@ -161,7 +176,7 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     try {
       await task()
     } catch (error) {
-      if (els.status) els.status.textContent = `error: ${error?.message || error}`
+      if (els.status) els.status.textContent = t('status.error', { message: localizeError(error) })
     }
   }
 
@@ -170,8 +185,10 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     if (event.key === 'Enter') handlers.onAddChannel?.(els.channelInput.value)
   })
   els.copyLink?.addEventListener('click', () => handlers.onCopyLink?.())
+  els.applyChannelName?.addEventListener('click', () => handlers.onChannelNameChange?.(els.channelNameInput?.value))
   els.applyTracker?.addEventListener('click', () => handlers.onTrackerChange?.(els.trackerInput?.value))
   els.applyNick?.addEventListener('click', () => handlers.onNicknameChange?.(els.nickInput?.value))
+  els.languageSelect?.addEventListener('change', () => handlers.onLanguageChange?.(els.languageSelect.value))
   els.openSettings?.addEventListener('click', () => setDialogOpen(els.settingsDialog, true))
   els.closeSettings?.addEventListener('click', () => setDialogOpen(els.settingsDialog, false))
   els.settingsDialog?.addEventListener('click', (event) => {
@@ -235,7 +252,7 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
 
   return {
     els,
-    setChannels({ channels, discovered, activeChannel, unread }) {
+    setChannels({ channels, discovered, activeChannel, unread, names = {} }) {
       els.channelList?.replaceChildren()
       for (const channelId of channels) {
         const row = doc.createElement('div')
@@ -249,7 +266,7 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
         hash.className = 'channel-hash'
         hash.textContent = '#'
         const label = doc.createElement('span')
-        label.textContent = shortHash(channelId, 8)
+        label.textContent = names[channelId] || shortHash(channelId, 8)
         select.append(hash, label)
         if (unread?.[channelId]) {
           const badge = doc.createElement('span')
@@ -261,13 +278,19 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
           handlers.onSwitchChannel?.(channelId)
           doc.body.classList.remove('channels-open')
         })
+        const copy = doc.createElement('button')
+        copy.className = 'channel-copy'
+        copy.type = 'button'
+        copy.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v11H8z"/><path d="M16 8V5H5v11h3"/></svg>'
+        copy.setAttribute('aria-label', t('channels.copy', { channel: names[channelId] || channelId }))
+        copy.addEventListener('click', () => handlers.onCopyChannelUrl?.(channelId))
         const remove = doc.createElement('button')
         remove.className = 'channel-remove'
         remove.type = 'button'
         remove.textContent = 'x'
-        remove.setAttribute('aria-label', `Delete channel ${channelId}`)
+        remove.setAttribute('aria-label', t('channels.delete', { channel: names[channelId] || channelId }))
         remove.addEventListener('click', () => handlers.onDeleteChannel?.(channelId))
-        row.append(select, remove)
+        row.append(select, copy, remove)
         els.channelList?.appendChild(row)
       }
 
@@ -277,20 +300,32 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
         button.className = 'discovered-channel'
         button.type = 'button'
         button.title = channelId
-        button.textContent = `+ #${shortHash(channelId, 8)}`
+        button.textContent = `+ ${names[channelId] || `#${shortHash(channelId, 8)}`}`
         button.addEventListener('click', () => handlers.onAddDiscoveredChannel?.(channelId))
         els.discoveredList?.appendChild(button)
       }
+      if (!discovered.length && els.discoveredList) {
+        const empty = doc.createElement('p')
+        empty.className = 'empty-hint'
+        empty.textContent = t('channels.noneDiscovered')
+        els.discoveredList.appendChild(empty)
+      }
     },
     setChannelError(value) {
-      if (els.channelError) els.channelError.textContent = value || ''
+      if (els.channelError) els.channelError.textContent = value ? localizeError(value) : ''
     },
     setSettingsError(value) {
-      if (els.settingsError) els.settingsError.textContent = value || ''
+      if (els.settingsError) els.settingsError.textContent = value ? localizeError(value) : ''
     },
-    setRoomId(id) {
-      if (els.roomId) els.roomId.textContent = `#${shortHash(id, 8)}`
+    setRoomId(id, name = '') {
+      if (els.roomId) els.roomId.textContent = name || `#${shortHash(id, 8)}`
       if (els.roomId) els.roomId.title = id
+      if (els.roomContext) els.roomContext.textContent = name
+        ? `#${shortHash(id, 8)} · ${t('room.context')}`
+        : t('room.context')
+    },
+    setChannelName(name) {
+      if (els.channelNameInput) els.channelNameInput.value = name || ''
     },
     setShareUrl(url) {
       if (els.shareUrl) els.shareUrl.value = url
@@ -305,7 +340,7 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
       if (els.peerCount) els.peerCount.textContent = String(value)
     },
     setStatus(value) {
-      if (els.status) els.status.textContent = value
+      if (els.status) els.status.textContent = statusText(value)
     },
     setOnlinePeers(self, peers) {
       if (!els.onlineList) return
@@ -320,13 +355,13 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
         const copy = doc.createElement('span')
         copy.className = 'member-copy'
         const name = doc.createElement('strong')
-        name.textContent = member.nickname || 'Peer'
+        name.textContent = member.nickname || t('members.peer')
         const hash = doc.createElement('small')
-        hash.textContent = member.self ? `(you${member.id ? ` / ${shortHash(member.id)}` : ''})` : `(${shortHash(member.id)})`
+        hash.textContent = member.self ? `(${t('members.you')}${member.id ? ` / ${shortHash(member.id)}` : ''})` : `(${shortHash(member.id)})`
         copy.append(name, hash)
         const dot = doc.createElement('span')
         dot.className = `member-dot${member.direct || member.self ? ' direct' : ' mesh'}`
-        dot.title = member.direct || member.self ? 'Directly connected' : 'Reachable through mesh'
+        dot.title = member.direct || member.self ? t('members.direct') : t('members.mesh')
         item.append(avatar, copy, dot)
         els.onlineList.appendChild(item)
       }
@@ -341,26 +376,46 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
       if (els.relayBandwidth) els.relayBandwidth.value = String(settings.bandwidthKbps)
       if (els.relayFrequency) els.relayFrequency.value = String(settings.messagesPerSecond)
       if (els.relayEffective) els.relayEffective.textContent = effective
-        ? 'Active: this node is publicly reachable.'
-        : 'Saved but inactive until this node is verified public.'
+        ? t('settings.relayActive')
+        : t('settings.relayInactive')
     },
     setPublicStatus(status) {
       if (els.publicState) {
-        els.publicState.textContent = status.public ? 'Public relay' : status.state === 'checking' ? 'Checking' : 'Private / unknown'
+        els.publicState.textContent = status.public ? t('relay.public') : status.state === 'checking' ? t('relay.checking') : t('relay.private')
         els.publicState.dataset.state = status.public ? 'public' : status.state
       }
-      if (els.publicDetail) els.publicDetail.textContent = status.detail || ''
+      if (els.publicDetail) {
+        const detailKey = status.detailKey || (status.public ? 'relay.verified' : status.state === 'browser-limited' ? 'relay.browserLimited' : status.state === 'checking' ? 'relay.waitingProbe' : 'relay.notReachable')
+        els.publicDetail.textContent = t(detailKey, {}, status.detail || '')
+      }
     },
     setUpnpSupported(supported) {
       if (!els.enableUpnp) return
       els.enableUpnp.disabled = !supported
-      els.enableUpnp.title = supported ? 'Open a temporary router mapping' : 'Requires RoomHash desktop or headless host adapter'
+      els.enableUpnp.title = t(supported ? 'settings.upnpSupported' : 'settings.upnpUnsupported')
     },
     addMessage(message) {
       appendMessageToList(els.messages, message, moduleRegistry)
     },
+    upsertSystemMessage(message) {
+      const existing = [...(els.messages?.children || [])].find(
+        (child) => child.dataset?.id === String(message.id)
+      )
+      if (existing) {
+        const text = existing.querySelector('.msg-system-text')
+        if (text) text.textContent = message.text || ''
+        els.messages.scrollTop = els.messages.scrollHeight
+        return
+      }
+      appendMessageToList(els.messages, message, moduleRegistry)
+    },
     clearMessages() {
       els.messages?.replaceChildren()
+    },
+    translate() {
+      applyDocumentTranslations(doc)
+      if (els.languageSelect) els.languageSelect.value = getLanguagePreference()
+      syncCollapseAria()
     }
   }
 }

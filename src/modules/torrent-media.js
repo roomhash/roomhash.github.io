@@ -1,4 +1,5 @@
 import { DEFAULT_TORRENT_TRACKERS } from '../config.js'
+import { localizeError, t } from '../i18n.js'
 
 export const TORRENT_MEDIA_MODULE = 'torrent.media'
 const TEXT_PREVIEW_LIMIT = 5 * 1024 * 1024
@@ -123,7 +124,7 @@ function setButtonBusy(button, busy, label) {
 
 async function renderTextFile(doc, file, host, markdown) {
   if (file.length > TEXT_PREVIEW_LIMIT) {
-    host.textContent = 'Preview disabled for text files larger than 5 MB.'
+    host.textContent = t('torrent.previewLarge')
     return
   }
   const blob = await getBlob(file)
@@ -141,9 +142,9 @@ async function renderTextFile(doc, file, host, markdown) {
   const tabs = doc.createElement('div')
   tabs.className = 'torrent-tabs'
   const renderedButton = doc.createElement('button')
-  renderedButton.textContent = 'Rendered'
+  renderedButton.textContent = t('torrent.rendered')
   const rawButton = doc.createElement('button')
-  rawButton.textContent = 'Raw'
+  rawButton.textContent = t('torrent.raw')
   const content = doc.createElement('div')
   content.className = 'torrent-markdown'
   tabs.append(renderedButton, rawButton)
@@ -163,7 +164,7 @@ async function renderTextFile(doc, file, host, markdown) {
   }
   rawButton.addEventListener('click', showRaw)
   renderedButton.addEventListener('click', () => showRendered().catch((error) => {
-    content.textContent = `Markdown render failed: ${error.message}`
+    content.textContent = t('torrent.markdownFailed', { message: localizeError(error) })
   }))
   await showRendered()
 }
@@ -188,7 +189,7 @@ async function openTorrentFile(doc, file, host) {
     }
     video.addEventListener('error', () => {
       useBlobFallback().catch((error) => {
-        host.textContent = `Video fallback failed: ${error.message}`
+        host.textContent = t('torrent.videoFallbackFailed', { message: localizeError(error) })
       })
     }, { once: true })
     file.streamTo(video)
@@ -208,7 +209,7 @@ async function openTorrentFile(doc, file, host) {
   }
   const link = doc.createElement('a')
   link.className = 'msg-file-link'
-  link.textContent = `Download ${file.name}`
+  link.textContent = t('torrent.download', { name: file.name })
   link.download = file.name
   host.appendChild(link)
   link.href = await getBlobUrl(file)
@@ -225,16 +226,16 @@ export function createTorrentMediaModule(controller) {
       card.className = 'torrent-card'
 
       const title = doc.createElement('strong')
-      title.textContent = String(payload.title || 'Shared torrent')
+      title.textContent = String(payload.title || t('torrent.shared'))
       const status = doc.createElement('div')
       status.className = 'torrent-status'
-      status.textContent = 'Loading torrent metadata...'
+      status.textContent = t('torrent.loading')
       const actions = doc.createElement('div')
       actions.className = 'torrent-actions'
       const preloadButton = doc.createElement('button')
-      preloadButton.textContent = 'Preload'
+      preloadButton.textContent = t('torrent.preload')
       const copyButton = doc.createElement('button')
-      copyButton.textContent = 'Copy magnet'
+      copyButton.textContent = t('torrent.copyMagnet')
       actions.append(preloadButton, copyButton)
       const files = doc.createElement('div')
       files.className = 'torrent-files'
@@ -244,18 +245,18 @@ export function createTorrentMediaModule(controller) {
 
       copyButton.addEventListener('click', async () => {
         await navigator.clipboard?.writeText(magnet)
-        copyButton.textContent = 'Copied'
+        copyButton.textContent = t('torrent.copied')
       })
 
       if (!isMagnetUri(magnet)) {
-        status.textContent = 'Invalid magnet link.'
+        status.textContent = t('torrent.invalid')
         preloadButton.disabled = true
         return card
       }
 
       controller.add(magnet).then((torrent) => {
         const update = () => {
-          status.textContent = `${Math.round(torrent.progress * 100)}% · ${torrent.numPeers} peers · ${formatBytes(torrent.downloadSpeed)}/s`
+          status.textContent = t('torrent.progress', { progress: Math.round(torrent.progress * 100), peers: torrent.numPeers, speed: formatBytes(torrent.downloadSpeed) })
         }
         update()
         torrent.on('download', update)
@@ -268,12 +269,12 @@ export function createTorrentMediaModule(controller) {
           button.className = 'torrent-file'
           button.textContent = `${file.name} · ${formatBytes(file.length)}`
           button.addEventListener('click', async () => {
-            setButtonBusy(button, true, 'Opening...')
+            setButtonBusy(button, true, t('torrent.opening'))
             try {
               file.select?.()
               await openTorrentFile(doc, file, viewer)
             } catch (error) {
-              viewer.textContent = `Unable to open file: ${error.message}`
+              viewer.textContent = t('torrent.openFailed', { message: localizeError(error) })
             } finally {
               setButtonBusy(button, false, `${file.name} · ${formatBytes(file.length)}`)
             }
@@ -283,15 +284,15 @@ export function createTorrentMediaModule(controller) {
 
         preloadButton.addEventListener('click', () => {
           controller.preload(torrent)
-          preloadButton.textContent = 'Preloading'
+          preloadButton.textContent = t('torrent.preloading')
           update()
         })
         if (controller.autoPreload) {
           controller.preload(torrent)
-          preloadButton.textContent = 'Preloading'
+          preloadButton.textContent = t('torrent.preloading')
         }
       }).catch((error) => {
-        status.textContent = `Torrent unavailable: ${error.message}`
+        status.textContent = t('torrent.unavailable', { message: localizeError(error) })
       })
 
       return card
