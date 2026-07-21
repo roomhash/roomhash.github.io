@@ -66,7 +66,7 @@ export class TorrentMediaController {
   }
 
   async _createClient() {
-    const { default: WebTorrent } = await import('webtorrent')
+    const { default: WebTorrent } = await import('webtorrent/dist/webtorrent.min.js')
     this.client = new WebTorrent()
     this.client.on('error', (error) => console.error('WebTorrent client error', error))
 
