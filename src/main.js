@@ -47,6 +47,13 @@ import {
   createTorrentMediaModule,
   isMagnetUri
 } from './modules/torrent-media.js'
+import {
+  WASM_APP_EVENT_MODULE,
+  WASM_APP_MODULE,
+  WasmAppController,
+  createWasmAppModule,
+  detectWasmAppManifest
+} from './modules/wasm-app.js'
 
 const CHANNEL_LIMIT = 32
 const MEMBER_SWEEP_MS = 10_000
@@ -73,9 +80,17 @@ const torrentMedia = new TorrentMediaController({
   trackers: DEFAULT_TORRENT_TRACKERS,
   autoPreload: loadTorrentPreload()
 })
+const wasmApps = new WasmAppController({
+  torrentMedia,
+  getActiveChannel: () => activeChannel,
+  sendEvent: async (channelId, payload) => {
+    const session = sessions.get(channelId)
+    if (session) await session.sendModule(WASM_APP_EVENT_MODULE, payload)
+  }
+})
 const moduleRegistry = new MessageModuleRegistry().register(
   createTorrentMediaModule(torrentMedia)
-)
+).register(createWasmAppModule(wasmApps))
 torrentMedia.onSeedsChanged((seeds) => ui?.setLocalSeeds(seeds))
 
 function isChannelId(value) {
@@ -309,6 +324,7 @@ async function startChannel(channelId) {
         if (channelId === activeChannel) renderActiveChannel()
       },
       onMessage(message) {
+        if (wasmApps.handleNetworkMessage(channelId, message)) return
         appendMessage(channelId, message)
         if (channelId === activeChannel) ui?.addMessage(message)
         else {
@@ -534,14 +550,19 @@ async function boot() {
     async onShareDemoGame() {
       const session = activeSession()
       if (!session) throw new Error('channel is still connecting')
-      await session.sendModule(TORRENT_MEDIA_MODULE, DEMO_PIXEL_GARDEN)
+      await session.sendModule(WASM_APP_MODULE, {
+        ...DEMO_PIXEL_GARDEN,
+        instanceId: `pixel-garden:${activeChannel}`
+      })
     },
     async onSeedFiles(files) {
       const session = activeSession()
       if (!session) throw new Error('channel is still connecting')
+      const input = Array.from(files)
+      const appManifest = await detectWasmAppManifest(input)
       ui?.setStatus({ key: 'status.creatingTorrent' })
       const torrent = await torrentMedia.seed(files)
-      await session.sendModule(TORRENT_MEDIA_MODULE, {
+      const payload = {
         magnet: torrent.magnetURI,
         title: torrent.name || Array.from(files)[0]?.name || 'Shared files',
         files: torrent.files.map((file) => ({
@@ -549,7 +570,16 @@ async function boot() {
           size: file.length,
           mime: file.type || ''
         }))
-      })
+      }
+      if (appManifest) {
+        await session.sendModule(WASM_APP_MODULE, {
+          ...payload,
+          manifest: appManifest,
+          instanceId: `${appManifest.id}:${activeChannel}`
+        })
+      } else {
+        await session.sendModule(TORRENT_MEDIA_MODULE, payload)
+      }
       ui?.setStatus({ key: torrent.roomHashCached ? 'status.torrentPublishedCached' : 'status.torrentCacheFailed' })
     },
     onTorrentPreloadChange(enabled) {

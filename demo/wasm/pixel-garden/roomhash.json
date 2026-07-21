@@ -1,13 +1,14 @@
 {
+  "schema": "roomhash.app/v1",
   "id": "org.roomhash.pixel-garden",
   "name": "Pixel Garden",
-  "version": "0.1.0",
-  "runtime": "rust-wasm",
-  "entry": "index.html",
-  "wasm": "pixel_garden.wasm",
+  "version": "1.0.0",
+  "runtime": "wasm",
+  "abi": "roomhash-pixel-grid-v1",
+  "entry": "pixel_garden.wasm",
+  "sha256": "340b7f1a3b8b1891bd7440b1b81a584a79124dca97f10c448d0e85bd23e162dc",
   "permissions": [
-    "p2p.state.sync",
-    "storage.local"
-  ],
-  "protocol": "pixel-garden-v1"
+    "channel.messages",
+    "storage:256kb"
+  ]
 }

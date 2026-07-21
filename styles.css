@@ -352,3 +352,21 @@ select { width: 100%; color-scheme: dark; }
   .demo-notification-actions { grid-column: 1 / -1; }
   .demo-action { flex: 1; }
 }
+
+.wasm-app-card { border-color: color-mix(in srgb, var(--online) 32%, var(--border)); }
+.wasm-app-meta { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.wasm-app-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 14px; }
+.wasm-app-runtime { margin-top: 16px; }
+.wasm-game-shell { display: grid; gap: 12px; max-width: 560px; }
+.wasm-game-toolbar { display: flex; align-items: center; gap: 8px; }
+.wasm-game-toolbar strong { margin-right: auto; }
+.wasm-game-palette { display: flex; flex-wrap: wrap; gap: 8px; }
+.wasm-flower-choice { width: 34px; height: 34px; padding: 0; border: 2px solid transparent; border-radius: 10px; cursor: pointer; }
+.wasm-flower-choice.active { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+.wasm-game-canvas { width: min(100%, 512px); aspect-ratio: 1; image-rendering: pixelated; border: 1px solid var(--border); border-radius: 14px; background: #17241d; cursor: crosshair; }
+.wasm-permission-dialog { width: min(520px, calc(100vw - 28px)); padding: 0; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
+.wasm-permission-dialog::backdrop { background: rgb(2 7 12 / 72%); backdrop-filter: blur(4px); }
+.wasm-permission-body { display: grid; gap: 12px; padding: 24px; }
+.wasm-permission-body h3, .wasm-permission-body p { margin: 0; }
+.wasm-permission-body p, .wasm-permission-body li { color: var(--muted); line-height: 1.5; }
+.wasm-permission-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; padding: 0 24px 24px; }

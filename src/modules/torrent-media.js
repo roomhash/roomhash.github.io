@@ -13,6 +13,18 @@ export function normalizeMagnetUri(value) {
   )
 }
 
+async function resolveTorrentIdentifier(magnet) {
+  try {
+    const exactSource = new URL(magnet).searchParams.get('xs')
+    if (!exactSource) return magnet
+    const response = await fetch(exactSource)
+    if (!response.ok) return magnet
+    return new Uint8Array(await response.arrayBuffer())
+  } catch {
+    return magnet
+  }
+}
+
 export class TorrentMetadataTimeoutError extends Error {
   constructor() {
     super('no WebRTC seed is currently available')
@@ -160,8 +172,9 @@ export class TorrentMediaController {
     const normalizedMagnet = normalizeMagnetUri(magnet)
     if (!isMagnetUri(normalizedMagnet)) throw new Error('invalid magnet link')
     const client = await this.start()
-    const existing = await client.get(normalizedMagnet)
-    const torrent = existing || client.add(normalizedMagnet, {
+    const torrentId = await resolveTorrentIdentifier(normalizedMagnet)
+    const existing = await client.get(torrentId)
+    const torrent = existing || client.add(torrentId, {
       announce: this.trackers,
       deselect: true
     })
@@ -449,13 +462,10 @@ export function createTorrentMediaModule(controller) {
       actions.className = 'torrent-actions'
       const preloadButton = doc.createElement('button')
       preloadButton.textContent = t('torrent.preload')
+      preloadButton.disabled = true
       const copyButton = doc.createElement('button')
       copyButton.textContent = t('torrent.copyMagnet')
-      const retryButton = doc.createElement('button')
-      retryButton.className = 'torrent-retry'
-      retryButton.textContent = t('torrent.retry')
-      retryButton.disabled = true
-      actions.append(preloadButton, copyButton, retryButton)
+      actions.append(preloadButton, copyButton)
       const files = doc.createElement('div')
       files.className = 'torrent-files'
       const viewer = doc.createElement('div')
@@ -465,6 +475,7 @@ export function createTorrentMediaModule(controller) {
       let currentTorrent = null
       let observedTorrent = null
       let attemptNumber = 0
+      let preloadAction = 'loading'
 
       const setConnection = (key) => {
         connectionState.textContent = t('torrent.connection', { state: t(key) })
@@ -502,14 +513,16 @@ export function createTorrentMediaModule(controller) {
       if (!isMagnetUri(magnet)) {
         status.textContent = t('torrent.invalid')
         preloadButton.disabled = true
-        retryButton.disabled = true
         setConnection('torrent.invalidState')
         return card
       }
 
       const showTorrent = (torrent) => {
         currentTorrent = torrent
-        retryButton.disabled = false
+        preloadAction = 'preload'
+        preloadButton.hidden = Boolean(torrent.done)
+        preloadButton.disabled = false
+        preloadButton.textContent = t('torrent.preload')
         setConnection(torrent.done ? 'torrent.seeding' : 'torrent.metadataReady')
         const update = () => {
           status.textContent = t('torrent.progress', { progress: Math.round(torrent.progress * 100), peers: torrent.numPeers, speed: formatBytes(torrent.downloadSpeed) })
@@ -518,7 +531,10 @@ export function createTorrentMediaModule(controller) {
         update()
         torrent.on('download', update)
         torrent.on('wire', update)
-        torrent.on('done', update)
+        torrent.on('done', () => {
+          update()
+          preloadButton.hidden = true
+        })
 
         files.replaceChildren()
         for (const file of torrent.files) {
@@ -539,20 +555,20 @@ export function createTorrentMediaModule(controller) {
           files.appendChild(button)
         }
 
-        preloadButton.addEventListener('click', () => {
-          controller.preload(torrent)
-          preloadButton.textContent = t('torrent.preloading')
-          update()
-        })
         if (controller.autoPreload) {
           controller.preload(torrent)
+          preloadAction = 'preloading'
+          preloadButton.disabled = true
           preloadButton.textContent = t('torrent.preloading')
         }
       }
 
       const connect = async () => {
         const attempt = ++attemptNumber
-        retryButton.disabled = true
+        preloadAction = 'loading'
+        preloadButton.hidden = false
+        preloadButton.disabled = true
+        preloadButton.textContent = t('torrent.preload')
         status.textContent = t('torrent.loading')
         setConnection('torrent.connecting')
         try {
@@ -561,7 +577,9 @@ export function createTorrentMediaModule(controller) {
           showTorrent(torrent)
         } catch (error) {
           if (attempt !== attemptNumber) return
-          retryButton.disabled = false
+          preloadAction = 'retry'
+          preloadButton.disabled = false
+          preloadButton.textContent = t('torrent.retry')
           if (error?.code === 'ERR_TORRENT_METADATA_TIMEOUT') {
             status.textContent = t('torrent.noWebRtcSeed')
             setConnection('torrent.noPeers')
@@ -572,7 +590,17 @@ export function createTorrentMediaModule(controller) {
           updateNetwork()
         }
       }
-      retryButton.addEventListener('click', connect)
+      preloadButton.addEventListener('click', () => {
+        if (preloadAction === 'retry') {
+          connect()
+          return
+        }
+        if (preloadAction !== 'preload' || !currentTorrent) return
+        controller.preload(currentTorrent)
+        preloadAction = 'preloading'
+        preloadButton.disabled = true
+        preloadButton.textContent = t('torrent.preloading')
+      })
       connect()
 
       return card
