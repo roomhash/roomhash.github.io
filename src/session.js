@@ -23,6 +23,7 @@ import {
  * @typedef {object} SessionEvents
  * @property {(peerId: string) => void} [onPeerJoin]
  * @property {(peerId: string) => void} [onPeerLeave]
+ * @property {(peerId: string, nickname: string) => void} [onPeerNickname]
  * @property {(msg: import('./message.js').ChatMessage) => void} [onMessage]
  * @property {(err: Error) => void} [onError]
  * @property {(peers: string[]) => void} [onPeersChanged]
@@ -278,7 +279,7 @@ export class PeerSession {
         const msg = deserializeMessage(raw)
         msg.peerId = peerId
         msg.local = false
-        if (msg.nickname) this.peerNicks.set(peerId, msg.nickname)
+        if (msg.nickname) this._setPeerNickname(peerId, msg.nickname)
         this.events.onMessage?.(msg)
       } catch (err) {
         this.events.onError?.(err instanceof Error ? err : new Error(String(err)))
@@ -286,7 +287,7 @@ export class PeerSession {
     }
 
     this._nickAction.onMessage = (nick, { peerId }) => {
-      this.peerNicks.set(peerId, String(nick))
+      this._setPeerNickname(peerId, nick)
     }
 
     this._historyAction.onMessage = (items, { peerId }) => {
@@ -395,6 +396,13 @@ export class PeerSession {
   setNickname(nickname) {
     this.nickname = nickname
     this._nickAction?.send(nickname)
+  }
+
+  _setPeerNickname(peerId, nickname) {
+    const next = String(nickname || 'Peer')
+    if (this.peerNicks.get(peerId) === next) return
+    this.peerNicks.set(peerId, next)
+    this.events.onPeerNickname?.(peerId, next)
   }
 
   /**

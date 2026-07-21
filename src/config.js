@@ -1,6 +1,6 @@
 /** App-wide constants shared by UI and P2P session. */
 
-export const APP_ID = 'roomhash-github-io-v1'
+export const APP_ID = 'roomhash-github-io-v2'
 
 /**
  * Canonical tracker shown in the UI and used as the default URL sentinel.

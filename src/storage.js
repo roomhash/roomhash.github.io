@@ -77,6 +77,58 @@ export function saveTorrentPreload(enabled) {
   store.setItem(key('torrent-preload'), String(Boolean(enabled)))
 }
 
+function loadStringArray(part) {
+  try {
+    const value = JSON.parse(store.getItem(key(part)) || '[]')
+    return Array.isArray(value) ? value.filter((item) => typeof item === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export function loadChannels() {
+  return loadStringArray('channels')
+}
+
+export function saveChannels(channels) {
+  store.setItem(key('channels'), JSON.stringify([...new Set(channels)]))
+}
+
+export function loadDiscoveredChannels() {
+  return loadStringArray('discovered-channels')
+}
+
+export function saveDiscoveredChannels(channels) {
+  store.setItem(key('discovered-channels'), JSON.stringify([...new Set(channels)].slice(0, 100)))
+}
+
+export function loadAutoAddChannels() {
+  return store.getItem(key('auto-add-channels')) === 'true'
+}
+
+export function saveAutoAddChannels(enabled) {
+  store.setItem(key('auto-add-channels'), String(Boolean(enabled)))
+}
+
+export function loadRelaySettings() {
+  try {
+    const value = JSON.parse(store.getItem(key('relay-settings')) || '{}')
+    return {
+      bandwidthKbps: Math.max(0, Number(value.bandwidthKbps || 256)),
+      messagesPerSecond: Math.max(0, Number(value.messagesPerSecond || 20))
+    }
+  } catch {
+    return { bandwidthKbps: 256, messagesPerSecond: 20 }
+  }
+}
+
+export function saveRelaySettings(settings) {
+  store.setItem(key('relay-settings'), JSON.stringify({
+    bandwidthKbps: Math.max(0, Number(settings.bandwidthKbps || 0)),
+    messagesPerSecond: Math.max(0, Number(settings.messagesPerSecond || 0))
+  }))
+}
+
 /**
  * @param {string} roomId
  * @returns {import('./message.js').ChatMessage[]}

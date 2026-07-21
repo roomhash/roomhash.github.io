@@ -1,15 +1,9 @@
-/**
- * Minimal chat UI bindings (DOM).
- */
+/** RoomHash DOM rendering and workspace controls. */
 
 import { normalizeMimeType } from './message.js'
 
-/**
- * Escape HTML text content.
- * @param {string} s
- */
-export function escapeHtml(s) {
-  return String(s)
+export function escapeHtml(value) {
+  return String(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -17,42 +11,27 @@ export function escapeHtml(s) {
     .replace(/'/g, '&#39;')
 }
 
-/**
- * Accept only the base64 data URLs produced by the shipped file path.
- * @param {unknown} value
- * @param {string} expectedMime
- */
 export function safeDataUrl(value, expectedMime) {
   if (typeof value !== 'string') return ''
   const comma = value.indexOf(',')
   if (comma < 0 || comma > 160) return ''
   const match = /^data:([^;,]+);base64$/i.exec(value.slice(0, comma))
-  if (!match || normalizeMimeType(match[1]) !== normalizeMimeType(expectedMime)) {
-    return ''
-  }
+  if (!match || normalizeMimeType(match[1]) !== normalizeMimeType(expectedMime)) return ''
   return /^[a-z0-9+/]*={0,2}$/i.test(value.slice(comma + 1)) ? value : ''
 }
 
-/**
- * Format timestamp for message list.
- * @param {number} ts
- */
 export function formatTime(ts) {
   try {
-    return new Date(ts).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })
+    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   } catch {
     return ''
   }
 }
 
-/**
- * Render a single message into HTML string.
- * @param {import('./message.js').ChatMessage} msg
- */
+export function shortHash(value, length = 6) {
+  return String(value || '').replace(/-/g, '').slice(0, length)
+}
+
 export function renderMessageHtml(msg) {
   const time = formatTime(msg.ts)
   const who = escapeHtml(msg.nickname || 'Peer')
@@ -61,9 +40,7 @@ export function renderMessageHtml(msg) {
     msg.local ? 'msg-local' : 'msg-remote',
     msg.type === 'file' ? 'msg-file' : '',
     msg.type === 'system' ? 'msg-system' : ''
-  ]
-    .filter(Boolean)
-    .join(' ')
+  ].filter(Boolean).join(' ')
 
   if (msg.type === 'system') {
     return `<div class="${cls}" data-id="${escapeHtml(msg.id)}"><span class="msg-time">${time}</span> ${escapeHtml(msg.text || '')}</div>`
@@ -74,111 +51,123 @@ export function renderMessageHtml(msg) {
     const mime = normalizeMimeType(msg.file.mime)
     const dataUrl = safeDataUrl(msg.dataUrl, mime)
     const safeUrl = escapeHtml(dataUrl)
-    const isImage = mime.startsWith('image/') && dataUrl
-    const body = isImage
+    const body = mime.startsWith('image/') && dataUrl
       ? `<img class="msg-image" src="${safeUrl}" alt="${name}" />`
       : dataUrl
-        ? `<a class="msg-file-link" href="${safeUrl}" download="${name}">📎 ${name}</a> <span class="msg-meta">(${msg.file.size} bytes)</span>`
-        : `<span class="msg-file-link">📎 ${name}</span> <span class="msg-meta">(${msg.file.size} bytes)</span>`
-    return `<div class="${cls}" data-id="${escapeHtml(msg.id)}">
+        ? `<a class="msg-file-link" href="${safeUrl}" download="${name}">${name}</a> <span class="msg-meta">${msg.file.size} bytes</span>`
+        : `<span class="msg-file-link">${name}</span> <span class="msg-meta">${msg.file.size} bytes</span>`
+    return `<article class="${cls}" data-id="${escapeHtml(msg.id)}">
       <div class="msg-head"><span class="msg-nick">${who}</span><span class="msg-time">${time}</span></div>
       <div class="msg-body">${body}</div>
-    </div>`
+    </article>`
   }
 
   if (msg.type === 'module') {
-    return `<div class="${cls}" data-id="${escapeHtml(msg.id)}">
+    return `<article class="${cls}" data-id="${escapeHtml(msg.id)}">
       <div class="msg-head"><span class="msg-nick">${who}</span><span class="msg-time">${time}</span></div>
       <div class="msg-body msg-module-fallback">Unsupported message module: ${escapeHtml(msg.module || 'unknown')}</div>
-    </div>`
+    </article>`
   }
 
-  return `<div class="${cls}" data-id="${escapeHtml(msg.id)}">
+  return `<article class="${cls}" data-id="${escapeHtml(msg.id)}">
     <div class="msg-head"><span class="msg-nick">${who}</span><span class="msg-time">${time}</span></div>
     <div class="msg-body">${escapeHtml(msg.text || '')}</div>
-  </div>`
+  </article>`
 }
 
-/**
- * Append message element to list and scroll.
- * @param {HTMLElement} listEl
- * @param {import('./message.js').ChatMessage} msg
- */
 export function appendMessageToList(listEl, msg, moduleRegistry = null) {
-  if (!listEl) return
-  const duplicate = [...listEl.children].some(
-    (child) => child.dataset?.id === String(msg.id)
-  )
-  if (duplicate) {
-    return
-  }
-  const wrap = document.createElement('div')
+  if (!listEl || [...listEl.children].some((child) => child.dataset?.id === String(msg.id))) return
+  const wrap = listEl.ownerDocument.createElement('div')
   wrap.innerHTML = renderMessageHtml(msg)
   const node = wrap.firstElementChild
   if (node && msg.type === 'module' && moduleRegistry?.canRender(msg)) {
     const body = node.querySelector('.msg-body')
-    const rendered = moduleRegistry.render(msg, {
-      document: listEl.ownerDocument,
-      message: msg
-    })
+    const rendered = moduleRegistry.render(msg, { document: listEl.ownerDocument, message: msg })
     if (body && rendered) body.replaceChildren(rendered)
   }
   if (node) listEl.appendChild(node)
   listEl.scrollTop = listEl.scrollHeight
 }
 
-/**
- * Bind primary UI controls. Returns controllers.
- * @param {Document} doc
- * @param {object} handlers
- */
+function setDialogOpen(dialog, open) {
+  if (!dialog) return
+  if (open && !dialog.open) dialog.showModal()
+  if (!open && dialog.open) dialog.close()
+}
+
 export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
+  const byId = (id) => doc.getElementById(id)
   const els = {
-    roomId: doc.getElementById('room-id'),
-    shareUrl: doc.getElementById('share-url'),
-    copyLink: doc.getElementById('copy-link'),
-    trackerInput: doc.getElementById('tracker-input'),
-    applyTracker: doc.getElementById('apply-tracker'),
-    nickInput: doc.getElementById('nick-input'),
-    applyNick: doc.getElementById('apply-nick'),
-    peerCount: doc.getElementById('peer-count'),
-    status: doc.getElementById('status'),
-    messages: doc.getElementById('messages'),
-    messageInput: doc.getElementById('message-input'),
-    sendBtn: doc.getElementById('send-btn'),
-    fileInput: doc.getElementById('file-input'),
-    attachBtn: doc.getElementById('attach-btn'),
-    torrentSeedBtn: doc.getElementById('torrent-seed-btn'),
-    torrentFileInput: doc.getElementById('torrent-file-input'),
-    torrentPreload: doc.getElementById('torrent-preload')
+    channelList: byId('channel-list'),
+    discoveredList: byId('discovered-list'),
+    channelInput: byId('channel-input'),
+    addChannel: byId('add-channel'),
+    channelError: byId('channel-error'),
+    roomId: byId('room-id'),
+    shareUrl: byId('share-url'),
+    copyLink: byId('copy-link'),
+    trackerInput: byId('tracker-input'),
+    applyTracker: byId('apply-tracker'),
+    nickInput: byId('nick-input'),
+    applyNick: byId('apply-nick'),
+    peerCount: byId('peer-count'),
+    status: byId('status'),
+    messages: byId('messages'),
+    messageInput: byId('message-input'),
+    sendBtn: byId('send-btn'),
+    fileInput: byId('file-input'),
+    attachBtn: byId('attach-btn'),
+    torrentSeedBtn: byId('torrent-seed-btn'),
+    torrentFileInput: byId('torrent-file-input'),
+    torrentPreload: byId('torrent-preload'),
+    onlineList: byId('online-list'),
+    settingsDialog: byId('settings-dialog'),
+    openSettings: byId('open-settings'),
+    closeSettings: byId('close-settings'),
+    settingsError: byId('settings-error'),
+    autoAddChannels: byId('auto-add-channels'),
+    relayBandwidth: byId('relay-bandwidth'),
+    relayFrequency: byId('relay-frequency'),
+    applyRelay: byId('apply-relay'),
+    relayEffective: byId('relay-effective'),
+    publicState: byId('public-state'),
+    publicDetail: byId('public-detail'),
+    enableUpnp: byId('enable-upnp'),
+    navToggle: byId('nav-toggle'),
+    membersToggle: byId('members-toggle')
   }
 
-  els.copyLink?.addEventListener('click', () => {
-    handlers.onCopyLink?.()
-  })
+  const run = async (task) => {
+    try {
+      await task()
+    } catch (error) {
+      if (els.status) els.status.textContent = `error: ${error?.message || error}`
+    }
+  }
 
-  els.applyTracker?.addEventListener('click', () => {
-    handlers.onTrackerChange?.(els.trackerInput?.value || '')
+  els.addChannel?.addEventListener('click', () => handlers.onAddChannel?.(els.channelInput?.value))
+  els.channelInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') handlers.onAddChannel?.(els.channelInput.value)
   })
-
-  els.applyNick?.addEventListener('click', () => {
-    handlers.onNicknameChange?.(els.nickInput?.value || '')
-  })
-
-  els.nickInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') handlers.onNicknameChange?.(els.nickInput.value)
+  els.copyLink?.addEventListener('click', () => handlers.onCopyLink?.())
+  els.applyTracker?.addEventListener('click', () => handlers.onTrackerChange?.(els.trackerInput?.value))
+  els.applyNick?.addEventListener('click', () => handlers.onNicknameChange?.(els.nickInput?.value))
+  els.openSettings?.addEventListener('click', () => setDialogOpen(els.settingsDialog, true))
+  els.closeSettings?.addEventListener('click', () => setDialogOpen(els.settingsDialog, false))
+  els.settingsDialog?.addEventListener('click', (event) => {
+    if (event.target === els.settingsDialog) setDialogOpen(els.settingsDialog, false)
   })
 
   const send = () => {
     const text = els.messageInput?.value || ''
-    handlers.onSendText?.(text)
-    if (els.messageInput) els.messageInput.value = ''
+    if (!text.trim()) return
+    run(() => handlers.onSendText?.(text))
+    els.messageInput.value = ''
   }
-
   els.sendBtn?.addEventListener('click', send)
-  els.messageInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
+  els.messageInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
       send()
     }
   })
@@ -186,51 +175,153 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
   els.attachBtn?.addEventListener('click', () => els.fileInput?.click())
   els.fileInput?.addEventListener('change', () => {
     const file = els.fileInput?.files?.[0]
-    if (file) handlers.onSendFile?.(file)
-    if (els.fileInput) els.fileInput.value = ''
+    if (file) run(() => handlers.onSendFile?.(file))
+    els.fileInput.value = ''
   })
-
   els.torrentSeedBtn?.addEventListener('click', () => els.torrentFileInput?.click())
   els.torrentFileInput?.addEventListener('change', () => {
     const files = els.torrentFileInput?.files
-    if (files?.length) handlers.onSeedFiles?.(files)
-    if (els.torrentFileInput) els.torrentFileInput.value = ''
+    if (files?.length) run(() => handlers.onSeedFiles?.(files))
+    els.torrentFileInput.value = ''
   })
-  els.torrentPreload?.addEventListener('change', () => {
-    handlers.onTorrentPreloadChange?.(Boolean(els.torrentPreload.checked))
-  })
+  els.torrentPreload?.addEventListener('change', () => handlers.onTorrentPreloadChange?.(els.torrentPreload.checked))
+  els.autoAddChannels?.addEventListener('change', () => handlers.onAutoAddChannelsChange?.(els.autoAddChannels.checked))
+  els.applyRelay?.addEventListener('click', () => handlers.onRelaySettingsChange?.({
+    bandwidthKbps: Number(els.relayBandwidth?.value || 0),
+    messagesPerSecond: Number(els.relayFrequency?.value || 0)
+  }))
+  els.enableUpnp?.addEventListener('click', () => run(() => handlers.onEnableUpnp?.()))
+  els.navToggle?.addEventListener('click', () => doc.body.classList.toggle('channels-open'))
+  els.membersToggle?.addEventListener('click', () => doc.body.classList.toggle('members-open'))
 
   return {
     els,
-    setRoomId(id) {
-      if (els.roomId) els.roomId.textContent = id
-    },
-    setShareUrl(url) {
-      if (els.shareUrl) {
-        els.shareUrl.value = url
-        els.shareUrl.title = url
+    setChannels({ channels, discovered, activeChannel, unread }) {
+      els.channelList?.replaceChildren()
+      for (const channelId of channels) {
+        const row = doc.createElement('div')
+        row.className = `channel-row${channelId === activeChannel ? ' active' : ''}`
+        const select = doc.createElement('button')
+        select.className = 'channel-select'
+        select.type = 'button'
+        select.title = channelId
+        select.setAttribute('aria-current', channelId === activeChannel ? 'page' : 'false')
+        const hash = doc.createElement('span')
+        hash.className = 'channel-hash'
+        hash.textContent = '#'
+        const label = doc.createElement('span')
+        label.textContent = shortHash(channelId, 8)
+        select.append(hash, label)
+        if (unread?.[channelId]) {
+          const badge = doc.createElement('span')
+          badge.className = 'unread-badge'
+          badge.textContent = unread[channelId] > 99 ? '99+' : String(unread[channelId])
+          select.appendChild(badge)
+        }
+        select.addEventListener('click', () => {
+          handlers.onSwitchChannel?.(channelId)
+          doc.body.classList.remove('channels-open')
+        })
+        const remove = doc.createElement('button')
+        remove.className = 'channel-remove'
+        remove.type = 'button'
+        remove.textContent = 'x'
+        remove.setAttribute('aria-label', `Delete channel ${channelId}`)
+        remove.addEventListener('click', () => handlers.onDeleteChannel?.(channelId))
+        row.append(select, remove)
+        els.channelList?.appendChild(row)
+      }
+
+      els.discoveredList?.replaceChildren()
+      for (const channelId of discovered) {
+        const button = doc.createElement('button')
+        button.className = 'discovered-channel'
+        button.type = 'button'
+        button.title = channelId
+        button.textContent = `+ #${shortHash(channelId, 8)}`
+        button.addEventListener('click', () => handlers.onAddDiscoveredChannel?.(channelId))
+        els.discoveredList?.appendChild(button)
       }
     },
-    setTracker(t) {
-      if (els.trackerInput) els.trackerInput.value = t
+    setChannelError(value) {
+      if (els.channelError) els.channelError.textContent = value || ''
     },
-    setNickname(n) {
-      if (els.nickInput) els.nickInput.value = n
+    setSettingsError(value) {
+      if (els.settingsError) els.settingsError.textContent = value || ''
     },
-    setPeerCount(n) {
-      if (els.peerCount) els.peerCount.textContent = String(n)
+    setRoomId(id) {
+      if (els.roomId) els.roomId.textContent = `#${shortHash(id, 8)}`
+      if (els.roomId) els.roomId.title = id
     },
-    setStatus(s) {
-      if (els.status) els.status.textContent = s
+    setShareUrl(url) {
+      if (els.shareUrl) els.shareUrl.value = url
+    },
+    setTracker(value) {
+      if (els.trackerInput) els.trackerInput.value = value
+    },
+    setNickname(value) {
+      if (els.nickInput) els.nickInput.value = value
+    },
+    setPeerCount(value) {
+      if (els.peerCount) els.peerCount.textContent = String(value)
+    },
+    setStatus(value) {
+      if (els.status) els.status.textContent = value
+    },
+    setOnlinePeers(self, peers) {
+      if (!els.onlineList) return
+      els.onlineList.replaceChildren()
+      const members = [{ ...self, self: true }, ...peers]
+      for (const member of members) {
+        const item = doc.createElement('div')
+        item.className = `member${member.self ? ' member-self' : ''}`
+        const avatar = doc.createElement('span')
+        avatar.className = 'member-avatar'
+        avatar.textContent = String(member.nickname || '?').slice(0, 1).toUpperCase()
+        const copy = doc.createElement('span')
+        copy.className = 'member-copy'
+        const name = doc.createElement('strong')
+        name.textContent = member.nickname || 'Peer'
+        const hash = doc.createElement('small')
+        hash.textContent = member.self ? `(you${member.id ? ` / ${shortHash(member.id)}` : ''})` : `(${shortHash(member.id)})`
+        copy.append(name, hash)
+        const dot = doc.createElement('span')
+        dot.className = `member-dot${member.direct || member.self ? ' direct' : ' mesh'}`
+        dot.title = member.direct || member.self ? 'Directly connected' : 'Reachable through mesh'
+        item.append(avatar, copy, dot)
+        els.onlineList.appendChild(item)
+      }
     },
     setTorrentPreload(enabled) {
       if (els.torrentPreload) els.torrentPreload.checked = Boolean(enabled)
     },
-    addMessage(msg) {
-      appendMessageToList(els.messages, msg, moduleRegistry)
+    setAutoAddChannels(enabled) {
+      if (els.autoAddChannels) els.autoAddChannels.checked = Boolean(enabled)
+    },
+    setRelaySettings(settings, effective) {
+      if (els.relayBandwidth) els.relayBandwidth.value = String(settings.bandwidthKbps)
+      if (els.relayFrequency) els.relayFrequency.value = String(settings.messagesPerSecond)
+      if (els.relayEffective) els.relayEffective.textContent = effective
+        ? 'Active: this node is publicly reachable.'
+        : 'Saved but inactive until this node is verified public.'
+    },
+    setPublicStatus(status) {
+      if (els.publicState) {
+        els.publicState.textContent = status.public ? 'Public relay' : status.state === 'checking' ? 'Checking' : 'Private / unknown'
+        els.publicState.dataset.state = status.public ? 'public' : status.state
+      }
+      if (els.publicDetail) els.publicDetail.textContent = status.detail || ''
+    },
+    setUpnpSupported(supported) {
+      if (!els.enableUpnp) return
+      els.enableUpnp.disabled = !supported
+      els.enableUpnp.title = supported ? 'Open a temporary router mapping' : 'Requires RoomHash desktop or headless host adapter'
+    },
+    addMessage(message) {
+      appendMessageToList(els.messages, message, moduleRegistry)
     },
     clearMessages() {
-      if (els.messages) els.messages.innerHTML = ''
+      els.messages?.replaceChildren()
     }
   }
 }

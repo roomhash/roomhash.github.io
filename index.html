@@ -3,85 +3,124 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      name="description"
-      content="RoomHash — a room in a link. Messages move peer to peer over WebRTC and stay in your browser."
-    />
-    <title>RoomHash — a room in a link</title>
+    <meta name="description" content="RoomHash is a decentralized multi-channel chat and media mesh." />
+    <title>RoomHash</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div id="app">
-      <header class="app-header">
-        <h1>RoomHash</h1>
-        <p class="tagline">A room in a link. Messages move peer to peer.</p>
-      </header>
+    <a class="skip-link" href="#messages">Skip to messages</a>
+    <div class="workspace">
+      <aside class="channel-rail" aria-label="Channels">
+        <header class="brand-block">
+          <div class="brand-mark" aria-hidden="true">RH</div>
+          <div><h1>RoomHash</h1><p>Peer mesh workspace</p></div>
+        </header>
+        <section class="channel-section">
+          <div class="section-heading"><span>Channels</span><span class="section-kicker">local</span></div>
+          <div id="channel-list" class="channel-list"></div>
+          <label class="field-label" for="channel-input">Add channel UUID</label>
+          <div class="channel-add-row">
+            <input id="channel-input" type="text" spellcheck="false" placeholder="xxxxxxxx-xxxx-..." />
+            <button id="add-channel" type="button" aria-label="Add channel">+</button>
+          </div>
+          <p id="channel-error" class="field-error" role="alert"></p>
+        </section>
+        <section class="channel-section discovered-section">
+          <div class="section-heading"><span>Discovered</span><span class="section-kicker">mesh</span></div>
+          <div id="discovered-list" class="discovered-list">
+            <p class="empty-hint">No channels discovered yet.</p>
+          </div>
+        </section>
+        <button id="open-settings" class="settings-trigger" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6V20h-4v-.09a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1H4v-4h.09a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6V4h4v.09a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.08.37.29.72.6 1H20v4h-.09c-.31.28-.52.63-.6 1Z"/></svg>
+          Settings
+        </button>
+      </aside>
 
-      <section class="panel" aria-label="Room">
-        <div class="row">
-          <label>Room</label>
-          <code id="room-id">—</code>
-        </div>
-        <div class="row">
-          <label for="share-url">Share</label>
-          <input id="share-url" class="grow" type="text" readonly />
-          <button type="button" id="copy-link">Copy link</button>
-        </div>
-        <div class="row">
-          <label for="tracker-input">Tracker</label>
-          <input
-            id="tracker-input"
-            class="grow"
-            type="text"
-            spellcheck="false"
-            placeholder="wss://tracker.example.com"
-          />
-          <button type="button" id="apply-tracker">Apply</button>
-        </div>
-        <div class="row">
-          <label for="nick-input">Nickname</label>
-          <input id="nick-input" class="grow" type="text" maxlength="32" />
-          <button type="button" id="apply-nick">Set</button>
-        </div>
-        <div class="meta-bar">
-          <span>Peers: <strong id="peer-count">0</strong></span>
-          <span>Status: <strong id="status">idle</strong></span>
-        </div>
-        <div class="torrent-tools">
-          <label class="toggle" for="torrent-preload">
-            <input id="torrent-preload" type="checkbox" />
-            Auto-preload shared torrents
-          </label>
-          <button type="button" id="torrent-seed-btn">Seed &amp; share files</button>
-          <input id="torrent-file-input" type="file" multiple />
-        </div>
-      </section>
+      <main class="chat-shell">
+        <header class="chat-header">
+          <button id="nav-toggle" class="icon-button mobile-only" type="button" aria-label="Open channels">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+          <div class="channel-identity"><strong id="room-id">#--------</strong><span>A room carried by its peers</span></div>
+          <div class="connection-summary">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span><strong id="peer-count">0</strong> direct</span>
+            <span id="status">initializing</span>
+          </div>
+          <button id="members-toggle" class="icon-button mobile-only" type="button" aria-label="Open members">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </button>
+        </header>
 
-      <section class="panel" aria-label="Chat">
-        <div id="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
-        <div class="composer">
-          <textarea
-            id="message-input"
-            class="grow"
-            rows="2"
-            placeholder="Message the room…"
-            aria-label="Message"
-          ></textarea>
+        <section id="messages" class="messages" role="log" aria-live="polite" aria-relevant="additions"></section>
+
+        <section class="composer-wrap" aria-label="Message composer">
+          <textarea id="message-input" rows="1" placeholder="Message this channel" aria-label="Message"></textarea>
           <div class="composer-actions">
-            <button type="button" id="attach-btn" title="Send a small file directly">📎 File</button>
-            <button type="button" id="send-btn" class="primary">Send</button>
+            <button id="attach-btn" class="icon-button" type="button" title="Send a small file" aria-label="Send a small file">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <button id="send-btn" class="send-button" type="button">Send</button>
           </div>
           <input id="file-input" type="file" />
-        </div>
-      </section>
+        </section>
+      </main>
 
-      <footer class="note">
-        All traffic after signaling is peer-to-peer (WebRTC). Signaling uses a public
-        WebTorrent-compatible tracker (<code>@trystero-p2p/torrent</code>). History is stored only in
-        this browser. Hard NATs may need a TURN server (not bundled). Open the same room link in two
-        tabs to try it. Torrent seeding lasts while the source tab remains open.
-      </footer>
+      <aside class="member-rail" aria-label="Members and network">
+        <section class="rail-section members-section">
+          <div class="section-heading"><span>Online</span><span class="section-kicker">mesh</span></div>
+          <div id="online-list" class="online-list"></div>
+        </section>
+        <section class="rail-section network-card">
+          <div class="section-heading"><span>Relay state</span></div>
+          <strong id="public-state" class="public-state">Private / unknown</strong>
+          <p id="public-detail">Browser reachability is inferred conservatively.</p>
+        </section>
+        <section class="rail-section media-tools">
+          <div class="section-heading"><span>Media swarm</span></div>
+          <button id="torrent-seed-btn" class="secondary-action" type="button">Seed and share files</button>
+          <label class="toggle-row" for="torrent-preload"><input id="torrent-preload" type="checkbox" /><span>Auto-preload torrents</span></label>
+          <input id="torrent-file-input" type="file" multiple />
+        </section>
+      </aside>
     </div>
+
+    <dialog id="settings-dialog" class="settings-dialog">
+      <form method="dialog" class="settings-head"><div><span class="eyebrow">RoomHash node</span><h2>Settings</h2></div><button id="close-settings" class="icon-button" type="button" aria-label="Close settings">x</button></form>
+      <div class="settings-grid">
+        <section class="settings-section">
+          <h3>Identity and discovery</h3>
+          <label for="nick-input">Nickname</label>
+          <div class="input-action"><input id="nick-input" type="text" maxlength="32" /><button id="apply-nick" type="button">Apply</button></div>
+          <label for="tracker-input">Signaling tracker</label>
+          <div class="input-action"><input id="tracker-input" type="text" spellcheck="false" /><button id="apply-tracker" type="button">Apply</button></div>
+          <label for="share-url">Current channel link</label>
+          <div class="input-action"><input id="share-url" type="text" readonly /><button id="copy-link" type="button">Copy</button></div>
+        </section>
+        <section class="settings-section">
+          <h3>Channel exchange</h3>
+          <label class="toggle-row" for="auto-add-channels"><input id="auto-add-channels" type="checkbox" /><span>Automatically add channels received from the mesh</span></label>
+          <p class="helper">Off by default. Discovered UUIDs remain reviewable in the channel rail.</p>
+        </section>
+        <section class="settings-section">
+          <h3>Public relay limits</h3>
+          <div class="settings-columns">
+            <label for="relay-bandwidth">Bandwidth <span>KB/s</span><input id="relay-bandwidth" type="number" min="0" max="102400" /></label>
+            <label for="relay-frequency">Frequency <span>messages/s</span><input id="relay-frequency" type="number" min="0" max="1000" /></label>
+          </div>
+          <button id="apply-relay" type="button">Save relay limits</button>
+          <p id="relay-effective" class="helper"></p>
+        </section>
+        <section class="settings-section">
+          <h3>UPnP capability module</h3>
+          <p class="helper">Available only when a desktop or headless RoomHash host supplies port mapping and an external reachability probe.</p>
+          <button id="enable-upnp" type="button" disabled>Open temporary port and probe</button>
+        </section>
+      </div>
+      <p id="settings-error" class="field-error" role="alert"></p>
+    </dialog>
+
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>
