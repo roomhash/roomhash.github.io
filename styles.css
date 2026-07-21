@@ -108,7 +108,7 @@ body.channel-rail-collapsed #collapse-sidebar svg { transform: rotate(180deg); }
 body.channel-rail-collapsed #nav-toggle,
 body.member-rail-collapsed #members-toggle { display: inline-grid; }
 
-.chat-shell { display: grid; grid-template-rows: 76px minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+.chat-shell { display: grid; grid-template-rows: 76px auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
 .chat-header { position: relative; z-index: 20; display: flex; align-items: center; gap: 18px; overflow: visible; padding: 0 22px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(18px); }
 .channel-identity { position: relative; display: grid; gap: 2px; min-width: 0; }
 .channel-identity strong { font-family: var(--mono); font-size: 16px; }

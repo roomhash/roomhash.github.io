@@ -6,6 +6,13 @@ export const TORRENT_MEDIA_MODULE = 'torrent.media'
 const TEXT_PREVIEW_LIMIT = 5 * 1024 * 1024
 const METADATA_TIMEOUT_MS = 20_000
 
+export function normalizeMagnetUri(value) {
+  return String(value || '').trim().replace(
+    /(^|[?&])xt=urn%3Abtih%3A/ig,
+    '$1xt=urn:btih:'
+  )
+}
+
 export class TorrentMetadataTimeoutError extends Error {
   constructor() {
     super('no WebRTC seed is currently available')
@@ -15,11 +22,12 @@ export class TorrentMetadataTimeoutError extends Error {
 }
 
 export function isMagnetUri(value) {
-  if (typeof value !== 'string' || !value.trim().toLowerCase().startsWith('magnet:?')) {
+  const magnet = normalizeMagnetUri(value)
+  if (!magnet.toLowerCase().startsWith('magnet:?')) {
     return false
   }
   try {
-    const url = new URL(value.trim())
+    const url = new URL(magnet)
     return url.protocol === 'magnet:' && url.searchParams.getAll('xt').some((xt) =>
       xt.toLowerCase().startsWith('urn:btih:')
     )
@@ -149,10 +157,11 @@ export class TorrentMediaController {
   }
 
   async add(magnet, { onTorrent } = {}) {
-    if (!isMagnetUri(magnet)) throw new Error('invalid magnet link')
+    const normalizedMagnet = normalizeMagnetUri(magnet)
+    if (!isMagnetUri(normalizedMagnet)) throw new Error('invalid magnet link')
     const client = await this.start()
-    const existing = await client.get(magnet)
-    const torrent = existing || client.add(magnet, {
+    const existing = await client.get(normalizedMagnet)
+    const torrent = existing || client.add(normalizedMagnet, {
       announce: this.trackers,
       deselect: true
     })
@@ -418,7 +427,7 @@ export function createTorrentMediaModule(controller) {
     version: 1,
     render(message, { document: doc }) {
       const payload = message.payload || {}
-      const magnet = String(payload.magnet || '')
+      const magnet = normalizeMagnetUri(payload.magnet)
       const card = doc.createElement('section')
       card.className = 'torrent-card'
 
