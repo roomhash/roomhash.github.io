@@ -87,7 +87,7 @@ export class TorrentMediaController {
   async add(magnet) {
     if (!isMagnetUri(magnet)) throw new Error('invalid magnet link')
     const client = await this.start()
-    const existing = client.get(magnet)
+    const existing = await client.get(magnet)
     if (existing) return this._waitForMetadata(existing)
     const torrent = client.add(magnet, {
       announce: this.trackers,
