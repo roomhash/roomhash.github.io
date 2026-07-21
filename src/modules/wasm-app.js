@@ -15,6 +15,38 @@ async function sha256(bytes) {
   return hex(await crypto.subtle.digest('SHA-256', bytes))
 }
 
+function formatBytes(value) {
+  const bytes = Number(value)
+  if (!Number.isFinite(bytes) || bytes < 0) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`
+  return `${(bytes / 1024 ** 3).toFixed(1)} GB`
+}
+
+function infoHashFromMagnet(magnet) {
+  try {
+    const exactTopic = new URL(String(magnet || '')).searchParams.getAll('xt')
+      .find((value) => value.toLowerCase().startsWith('urn:btih:'))
+    return exactTopic ? exactTopic.slice('urn:btih:'.length) : ''
+  } catch {
+    return ''
+  }
+}
+
+function appendIdentity(identity, doc, label, value, className = '') {
+  if (!value) return
+  const row = doc.createElement('div')
+  const term = doc.createElement('dt')
+  term.textContent = label
+  const detail = doc.createElement('dd')
+  detail.textContent = value
+  detail.title = value
+  if (className) detail.className = className
+  row.append(term, detail)
+  identity.appendChild(row)
+}
+
 function validManifest(manifest) {
   return Boolean(
     manifest &&
@@ -151,9 +183,14 @@ export class WasmAppController {
     toolbar.className = 'wasm-game-toolbar'
     const name = doc.createElement('strong')
     name.textContent = manifest.name || manifest.id
+    const fullscreen = doc.createElement('button')
+    fullscreen.className = 'wasm-fullscreen-action'
+    fullscreen.type = 'button'
+    fullscreen.textContent = t('wasm.fullscreen')
     const stop = doc.createElement('button')
+    stop.type = 'button'
     stop.textContent = t('wasm.stop')
-    toolbar.append(name, stop)
+    toolbar.append(name, fullscreen, stop)
     const palette = doc.createElement('div')
     palette.className = 'wasm-game-palette'
     const colors = ['#f5b84b', '#51d7b7', '#ff7b72', '#74b9ff']
@@ -173,6 +210,31 @@ export class WasmAppController {
     canvas.className = 'wasm-game-canvas'
     shell.append(toolbar, palette, canvas)
     mount.replaceChildren(shell)
+
+    const fullscreenElement = () => doc.fullscreenElement || doc.webkitFullscreenElement
+    const updateFullscreen = () => {
+      const active = fullscreenElement() === shell
+      shell.classList.toggle('is-fullscreen', active)
+      fullscreen.textContent = t(active ? 'wasm.exitFullscreen' : 'wasm.fullscreen')
+      fullscreen.setAttribute('aria-pressed', String(active))
+    }
+    const onFullscreenChange = () => updateFullscreen()
+    doc.addEventListener('fullscreenchange', onFullscreenChange)
+    doc.addEventListener('webkitfullscreenchange', onFullscreenChange)
+    fullscreen.addEventListener('click', async () => {
+      try {
+        if (fullscreenElement() === shell) {
+          const exit = doc.exitFullscreen || doc.webkitExitFullscreen
+          await exit?.call(doc)
+        } else {
+          const request = shell.requestFullscreen || shell.webkitRequestFullscreen
+          if (!request) throw new Error(t('wasm.fullscreenUnavailable'))
+          await request.call(shell)
+        }
+      } catch {
+        fullscreen.textContent = t('wasm.fullscreenUnavailable')
+      }
+    })
 
     const listeners = this.listeners.get(key) || new Set()
     const receive = (event) => {
@@ -224,6 +286,8 @@ export class WasmAppController {
       if (Date.now() - lastPong > 5000) {
         worker.terminate()
         clearInterval(timer)
+        doc.removeEventListener('fullscreenchange', onFullscreenChange)
+        doc.removeEventListener('webkitfullscreenchange', onFullscreenChange)
         mount.textContent = t('wasm.invalid', { message: 'execution timeout' })
         return
       }
@@ -233,6 +297,12 @@ export class WasmAppController {
       clearInterval(timer)
       worker.terminate()
       listeners.delete(receive)
+      doc.removeEventListener('fullscreenchange', onFullscreenChange)
+      doc.removeEventListener('webkitfullscreenchange', onFullscreenChange)
+      if (fullscreenElement() === shell) {
+        const exit = doc.exitFullscreen || doc.webkitExitFullscreen
+        exit?.call(doc)
+      }
       mount.replaceChildren()
     })
     worker.postMessage({ type: 'load', bytes }, [bytes])
@@ -249,12 +319,33 @@ export function createWasmAppModule(controller) {
       const manifest = payload.manifest || {}
       const card = doc.createElement('section')
       card.className = 'torrent-card wasm-app-card'
+      const heading = doc.createElement('div')
+      heading.className = 'wasm-app-heading'
       const title = doc.createElement('strong')
+      title.className = 'wasm-app-title'
       title.textContent = manifest.name || payload.title || 'WASM App'
+      heading.appendChild(title)
+      if (manifest.version) {
+        const version = doc.createElement('span')
+        version.className = 'wasm-app-version'
+        version.textContent = `v${manifest.version}`
+        heading.appendChild(version)
+      }
       const meta = doc.createElement('div')
       meta.className = 'wasm-app-meta'
       meta.textContent = `${t('wasm.type')} · ${manifest.abi || 'unknown ABI'}`
+      const identity = doc.createElement('dl')
+      identity.className = 'wasm-app-identity'
+      const files = Array.isArray(payload.files) ? payload.files : []
+      const entryFile = files.find((file) => file?.name === manifest.entry || file?.path?.endsWith(`/${manifest.entry}`)) || files[0]
+      const fileName = entryFile?.name || manifest.entry
+      const fileSize = formatBytes(entryFile?.size ?? entryFile?.length)
+      appendIdentity(identity, doc, t('wasm.appId'), manifest.id)
+      appendIdentity(identity, doc, t('wasm.file'), [fileName, fileSize].filter(Boolean).join(' · '))
+      appendIdentity(identity, doc, t('wasm.infoHash'), infoHashFromMagnet(payload.magnet), 'wasm-app-hash')
+      appendIdentity(identity, doc, t('wasm.sha256'), manifest.sha256, 'wasm-app-hash')
       const status = doc.createElement('p')
+      status.className = 'wasm-app-status'
       const actions = doc.createElement('div')
       actions.className = 'wasm-app-actions'
       const run = doc.createElement('button')
@@ -264,7 +355,7 @@ export function createWasmAppModule(controller) {
       actions.append(run, copy)
       const runtime = doc.createElement('div')
       runtime.className = 'wasm-app-runtime'
-      card.append(title, meta, status, actions, runtime)
+      card.append(heading, meta, identity, status, actions, runtime)
 
       if (!validManifest(manifest)) {
         status.textContent = t('wasm.unsupported', { abi: manifest.abi || 'unknown ABI' })

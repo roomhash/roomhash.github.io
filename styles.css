@@ -353,20 +353,50 @@ select { width: 100%; color-scheme: dark; }
   .demo-action { flex: 1; }
 }
 
-.wasm-app-card { border-color: color-mix(in srgb, var(--online) 32%, var(--border)); }
+.wasm-app-card {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(16px, 2vw, 22px);
+  border-color: color-mix(in srgb, var(--online) 32%, var(--border));
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--online) 9%, transparent), transparent 34%),
+    var(--surface);
+}
+.wasm-app-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+.wasm-app-title { font-size: clamp(17px, 2vw, 21px); letter-spacing: -.025em; }
+.wasm-app-version { padding: 3px 7px; color: var(--online); background: color-mix(in srgb, var(--online) 10%, transparent); border: 1px solid color-mix(in srgb, var(--online) 25%, var(--border)); border-radius: 999px; font-family: var(--mono); font-size: 9px; }
 .wasm-app-meta { color: var(--muted); font-family: var(--mono); font-size: 11px; }
-.wasm-app-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 14px; }
-.wasm-app-runtime { margin-top: 16px; }
-.wasm-game-shell { display: grid; gap: 12px; max-width: 560px; }
+.wasm-app-identity { display: grid; gap: 1px; margin: 4px 0 0; overflow: hidden; background: var(--border); border: 1px solid var(--border); border-radius: 12px; }
+.wasm-app-identity > div { display: grid; grid-template-columns: minmax(112px, .3fr) minmax(0, 1fr); gap: 12px; padding: 9px 11px; background: color-mix(in srgb, var(--surface-2) 88%, var(--bg)); }
+.wasm-app-identity dt { color: var(--faint); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.wasm-app-identity dd { min-width: 0; margin: 0; color: var(--text); font-size: 11px; overflow-wrap: anywhere; }
+.wasm-app-identity .wasm-app-hash { color: var(--muted); font-family: var(--mono); font-size: 10px; font-variant-numeric: tabular-nums; }
+.wasm-app-status { min-height: 20px; margin: 2px 0 0; color: var(--muted); }
+.wasm-app-status:empty { display: none; }
+.wasm-app-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 4px; }
+.wasm-app-actions button, .wasm-game-toolbar button { min-height: 44px; padding: 0 13px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 10px; font-weight: 700; }
+.wasm-app-actions button:hover, .wasm-game-toolbar button:hover { border-color: var(--accent); }
+.wasm-app-runtime { margin-top: 8px; }
+.wasm-app-runtime:empty { display: none; }
+.wasm-game-shell { display: grid; gap: 12px; max-width: 720px; padding: 14px; background: color-mix(in srgb, var(--bg) 72%, var(--surface)); border: 1px solid var(--border); border-radius: 16px; }
 .wasm-game-toolbar { display: flex; align-items: center; gap: 8px; }
-.wasm-game-toolbar strong { margin-right: auto; }
+.wasm-game-toolbar strong { margin-right: auto; font-size: 14px; }
 .wasm-game-palette { display: flex; flex-wrap: wrap; gap: 8px; }
-.wasm-flower-choice { width: 34px; height: 34px; padding: 0; border: 2px solid transparent; border-radius: 10px; cursor: pointer; }
+.wasm-flower-choice { width: 44px; height: 44px; padding: 0; border: 2px solid transparent; border-radius: 12px; cursor: pointer; }
 .wasm-flower-choice.active { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
-.wasm-game-canvas { width: min(100%, 512px); aspect-ratio: 1; image-rendering: pixelated; border: 1px solid var(--border); border-radius: 14px; background: #17241d; cursor: crosshair; }
+.wasm-game-canvas { display: block; width: min(100%, 640px); aspect-ratio: 1; image-rendering: pixelated; border: 1px solid var(--border); border-radius: 14px; background: #17241d; cursor: crosshair; touch-action: none; }
+.wasm-game-shell:fullscreen, .wasm-game-shell.is-fullscreen { width: 100vw; height: 100dvh; max-width: none; padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); overflow: auto; color: var(--text); background: radial-gradient(circle at 50% 40%, #18352d, var(--bg) 68%); border: 0; border-radius: 0; grid-template-rows: auto auto minmax(0, 1fr); }
+.wasm-game-shell:fullscreen .wasm-game-canvas, .wasm-game-shell.is-fullscreen .wasm-game-canvas { width: min(100%, calc(100dvh - 150px), 960px); max-height: calc(100dvh - 150px); justify-self: center; }
 .wasm-permission-dialog { width: min(520px, calc(100vw - 28px)); padding: 0; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
 .wasm-permission-dialog::backdrop { background: rgb(2 7 12 / 72%); backdrop-filter: blur(4px); }
 .wasm-permission-body { display: grid; gap: 12px; padding: 24px; }
 .wasm-permission-body h3, .wasm-permission-body p { margin: 0; }
 .wasm-permission-body p, .wasm-permission-body li { color: var(--muted); line-height: 1.5; }
 .wasm-permission-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; padding: 0 24px 24px; }
+
+@media (max-width: 720px) {
+  .wasm-app-identity > div { grid-template-columns: 1fr; gap: 4px; }
+  .wasm-game-toolbar { flex-wrap: wrap; }
+  .wasm-game-toolbar strong { flex: 1 0 calc(100% - 8px); }
+  .wasm-game-toolbar button { flex: 1; }
+}
