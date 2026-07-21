@@ -2,7 +2,7 @@
  * RoomHash entry: room from hash, P2P via WebTorrent trackers, local persistence.
  */
 
-import { DEFAULT_TRACKER } from './config.js'
+import { DEFAULT_TRACKER, DEFAULT_TORRENT_TRACKERS } from './config.js'
 import {
   buildShareUrl,
   encodeRoomHash,
@@ -18,10 +18,19 @@ import {
   loadMessages,
   loadNickname,
   loadPreferredTracker,
+  loadTorrentPreload,
   saveNickname,
-  savePreferredTracker
+  savePreferredTracker,
+  saveTorrentPreload
 } from './storage.js'
 import { bindUi } from './ui.js'
+import { MessageModuleRegistry } from './modules/registry.js'
+import {
+  TORRENT_MEDIA_MODULE,
+  TorrentMediaController,
+  createTorrentMediaModule,
+  isMagnetUri
+} from './modules/torrent-media.js'
 
 /** @type {import('./session.js').PeerSession | null} */
 let session = null
@@ -30,6 +39,13 @@ let ui = null
 let roomId = ''
 let tracker = DEFAULT_TRACKER
 let nickname = ''
+const torrentMedia = new TorrentMediaController({
+  trackers: DEFAULT_TORRENT_TRACKERS,
+  autoPreload: loadTorrentPreload()
+})
+const moduleRegistry = new MessageModuleRegistry().register(
+  createTorrentMediaModule(torrentMedia)
+)
 
 function applyHashToLocation(id, track) {
   const hash = encodeRoomHash({ roomId: id, tracker: track })
@@ -60,6 +76,7 @@ async function startSession() {
       roomId,
       tracker,
       nickname,
+      getHistory: () => loadMessages(roomId),
       events: {
         onPeerJoin(peerId) {
           ui?.addMessage({
@@ -177,7 +194,15 @@ async function boot() {
         return
       }
       try {
-        await session.sendText(text)
+        const trimmed = text.trim()
+        if (isMagnetUri(trimmed)) {
+          await session.sendModule(TORRENT_MEDIA_MODULE, {
+            magnet: trimmed,
+            title: 'Shared magnet link'
+          })
+        } else {
+          await session.sendText(text)
+        }
       } catch (err) {
         ui?.setStatus(`send failed: ${err?.message || err}`)
       }
@@ -201,13 +226,42 @@ async function boot() {
         console.error(err)
         ui?.setStatus(`file send failed: ${err?.message || err}`)
       }
+    },
+    async onSeedFiles(files) {
+      if (!session) {
+        ui?.setStatus('not connected')
+        return
+      }
+      try {
+        ui?.setStatus('creating torrent...')
+        const torrent = await torrentMedia.seed(files)
+        await session.sendModule(TORRENT_MEDIA_MODULE, {
+          magnet: torrent.magnetURI,
+          title: torrent.name || Array.from(files)[0]?.name || 'Shared files',
+          files: torrent.files.map((file) => ({
+            name: file.name,
+            size: file.length,
+            mime: file.type || ''
+          }))
+        })
+        ui?.setStatus('torrent published · keep this tab open to seed')
+      } catch (err) {
+        console.error(err)
+        ui?.setStatus(`torrent publish failed: ${err?.message || err}`)
+      }
+    },
+    onTorrentPreloadChange(enabled) {
+      torrentMedia.setAutoPreload(enabled)
+      saveTorrentPreload(enabled)
+      ui?.setStatus(enabled ? 'torrent auto-preload enabled' : 'torrent auto-preload disabled')
     }
-  })
+  }, { moduleRegistry })
 
   ui.setRoomId(roomId)
   ui.setTracker(tracker)
   ui.setNickname(nickname)
   ui.setPeerCount(0)
+  ui.setTorrentPreload(torrentMedia.autoPreload)
   refreshShareUrl()
   loadHistory()
 

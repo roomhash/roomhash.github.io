@@ -47,6 +47,14 @@
           <span>Peers: <strong id="peer-count">0</strong></span>
           <span>Status: <strong id="status">idle</strong></span>
         </div>
+        <div class="torrent-tools">
+          <label class="toggle" for="torrent-preload">
+            <input id="torrent-preload" type="checkbox" />
+            Auto-preload shared torrents
+          </label>
+          <button type="button" id="torrent-seed-btn">Seed &amp; share files</button>
+          <input id="torrent-file-input" type="file" multiple />
+        </div>
       </section>
 
       <section class="panel" aria-label="Chat">
@@ -60,7 +68,7 @@
             aria-label="Message"
           ></textarea>
           <div class="composer-actions">
-            <button type="button" id="attach-btn" title="Send image or file">📎 File</button>
+            <button type="button" id="attach-btn" title="Send a small file directly">📎 File</button>
             <button type="button" id="send-btn" class="primary">Send</button>
           </div>
           <input id="file-input" type="file" />
@@ -71,7 +79,7 @@
         All traffic after signaling is peer-to-peer (WebRTC). Signaling uses a public
         WebTorrent-compatible tracker (<code>@trystero-p2p/torrent</code>). History is stored only in
         this browser. Hard NATs may need a TURN server (not bundled). Open the same room link in two
-        tabs to try it.
+        tabs to try it. Torrent seeding lasts while the source tab remains open.
       </footer>
     </div>
     <script type="module" src="./src/main.js"></script>

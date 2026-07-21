@@ -4,7 +4,7 @@
  */
 
 /**
- * @typedef {'text' | 'file' | 'system'} MessageType
+ * @typedef {'text' | 'file' | 'system' | 'module'} MessageType
  *
  * @typedef {object} FileMeta
  * @property {string} name
@@ -21,6 +21,9 @@
  * @property {string} [text]
  * @property {FileMeta} [file]
  * @property {string} [dataUrl] for images/files persisted as data URL
+ * @property {string} [module] registered module id
+ * @property {number} [moduleVersion] module payload schema version
+ * @property {Record<string, unknown>} [payload] JSON-safe module payload
  * @property {boolean} [local] true if sent by this client
  */
 
@@ -104,6 +107,43 @@ export function createFileMessage(input) {
 }
 
 /**
+ * Build an extensible module message. Payloads are data only; they never contain
+ * executable code and are rendered only by locally registered modules.
+ * @param {{ module: string, payload: Record<string, unknown>, nickname: string, moduleVersion?: number, peerId?: string, id?: string, ts?: number, local?: boolean }} input
+ * @returns {ChatMessage}
+ */
+export function createModuleMessage(input) {
+  const module = String(input.module || '').trim()
+  if (!/^[a-z0-9][a-z0-9._-]{1,63}$/i.test(module)) {
+    throw new Error('invalid message module id')
+  }
+  const moduleVersion = Number(input.moduleVersion ?? 1)
+  if (!Number.isInteger(moduleVersion) || moduleVersion < 1) {
+    throw new Error('invalid message module version')
+  }
+  let payload
+  try {
+    payload = JSON.parse(JSON.stringify(input.payload ?? {}))
+  } catch {
+    throw new Error('module payload must be JSON-safe')
+  }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('module payload must be an object')
+  }
+  return {
+    id: input.id || newMessageId(),
+    type: 'module',
+    nickname: String(input.nickname || 'Anonymous'),
+    peerId: input.peerId,
+    ts: input.ts ?? Date.now(),
+    module,
+    moduleVersion,
+    payload,
+    local: Boolean(input.local)
+  }
+}
+
+/**
  * Serialize a ChatMessage for P2P wire / storage (JSON-safe).
  * Omits large binary; file bytes travel separately or as dataUrl.
  * @param {ChatMessage} msg
@@ -122,6 +162,9 @@ export function serializeMessage(msg) {
   if (msg.type === 'file' && (!msg.file || typeof msg.file.name !== 'string')) {
     throw new Error('file message requires file metadata')
   }
+  if (msg.type === 'module' && (!msg.module || !msg.payload)) {
+    throw new Error('module message requires module and payload')
+  }
   const payload = {
     id: msg.id,
     type: msg.type,
@@ -138,7 +181,10 @@ export function serializeMessage(msg) {
         }
       : undefined,
     // dataUrl is included for small files so receivers can display without separate binary channel
-    dataUrl: msg.dataUrl
+    dataUrl: msg.dataUrl,
+    module: msg.module,
+    moduleVersion: msg.moduleVersion,
+    payload: msg.payload
   }
   return JSON.stringify(payload)
 }
@@ -184,6 +230,18 @@ export function deserializeMessage(raw) {
         id: obj.file?.id
       },
       dataUrl: obj.dataUrl,
+      local: false
+    })
+  }
+  if (obj.type === 'module') {
+    return createModuleMessage({
+      id: obj.id,
+      module: obj.module,
+      moduleVersion: obj.moduleVersion,
+      payload: obj.payload,
+      nickname: obj.nickname,
+      peerId: obj.peerId,
+      ts: obj.ts,
       local: false
     })
   }

@@ -69,6 +69,14 @@ export function savePreferredTracker(tracker) {
   store.setItem(key('tracker'), tracker)
 }
 
+export function loadTorrentPreload() {
+  return store.getItem(key('torrent-preload')) === 'true'
+}
+
+export function saveTorrentPreload(enabled) {
+  store.setItem(key('torrent-preload'), String(Boolean(enabled)))
+}
+
 /**
  * @param {string} roomId
  * @returns {import('./message.js').ChatMessage[]}

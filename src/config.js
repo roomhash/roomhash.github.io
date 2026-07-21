@@ -9,4 +9,11 @@ export const APP_ID = 'roomhash-github-io-v1'
  */
 export const DEFAULT_TRACKER = 'wss://tracker.openwebtorrent.com'
 
+/** Public WebTorrent trackers used for browser-to-browser content swarms. */
+export const DEFAULT_TORRENT_TRACKERS = [
+  'wss://tracker.webtorrent.dev',
+  'wss://tracker.openwebtorrent.com',
+  'wss://tracker.btorrent.xyz'
+]
+
 export const STORAGE_PREFIX = 'roomhash:'

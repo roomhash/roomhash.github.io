@@ -161,4 +161,29 @@ describe('peer session protocol (shipped PeerSession + LocalBus)', () => {
     a.leave()
     b.leave()
   })
+
+  it('exchanges registered module payloads', async () => {
+    const bus = new LocalBusTransport()
+    const received = []
+    const a = new PeerSession({
+      roomId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+      nickname: 'A',
+      joinRoom: bus.joinRoom,
+      events: { onMessage: (msg) => !msg.local && received.push(msg) }
+    })
+    const b = new PeerSession({
+      roomId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+      nickname: 'B',
+      joinRoom: bus.joinRoom
+    })
+    await a.start()
+    await b.start()
+    await waitFor(() => a.getPeers().length === 1)
+    await b.sendModule('torrent.media', { magnet: 'magnet:?xt=urn:btih:abc' })
+    await waitFor(() => received.length === 1)
+    assert.equal(received[0].module, 'torrent.media')
+    assert.equal(received[0].payload.magnet, 'magnet:?xt=urn:btih:abc')
+    a.leave()
+    b.leave()
+  })
 })

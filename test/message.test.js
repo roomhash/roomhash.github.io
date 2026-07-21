@@ -4,6 +4,7 @@ import {
   FileAssembler,
   bytesToDataUrl,
   createFileMessage,
+  createModuleMessage,
   createTextMessage,
   deserializeMessage,
   frameFileTransfer,
@@ -41,6 +42,19 @@ describe('message framing (shipped)', () => {
     assert.equal(back.file.mime, 'image/png')
     assert.equal(back.file.size, 12)
     assert.equal(back.dataUrl, 'data:image/png;base64,AAAA')
+  })
+
+  it('module payload round-trips as JSON data', () => {
+    const msg = createModuleMessage({
+      module: 'torrent.media',
+      moduleVersion: 1,
+      nickname: 'Seeder',
+      payload: { magnet: 'magnet:?xt=urn:btih:abc', files: [{ name: 'movie.mp4' }] }
+    })
+    const back = deserializeMessage(serializeMessage(msg))
+    assert.equal(back.type, 'module')
+    assert.equal(back.module, 'torrent.media')
+    assert.equal(back.payload.files[0].name, 'movie.mp4')
   })
 
   it('rejects empty text', () => {

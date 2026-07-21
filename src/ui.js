@@ -86,6 +86,13 @@ export function renderMessageHtml(msg) {
     </div>`
   }
 
+  if (msg.type === 'module') {
+    return `<div class="${cls}" data-id="${escapeHtml(msg.id)}">
+      <div class="msg-head"><span class="msg-nick">${who}</span><span class="msg-time">${time}</span></div>
+      <div class="msg-body msg-module-fallback">Unsupported message module: ${escapeHtml(msg.module || 'unknown')}</div>
+    </div>`
+  }
+
   return `<div class="${cls}" data-id="${escapeHtml(msg.id)}">
     <div class="msg-head"><span class="msg-nick">${who}</span><span class="msg-time">${time}</span></div>
     <div class="msg-body">${escapeHtml(msg.text || '')}</div>
@@ -97,7 +104,7 @@ export function renderMessageHtml(msg) {
  * @param {HTMLElement} listEl
  * @param {import('./message.js').ChatMessage} msg
  */
-export function appendMessageToList(listEl, msg) {
+export function appendMessageToList(listEl, msg, moduleRegistry = null) {
   if (!listEl) return
   const duplicate = [...listEl.children].some(
     (child) => child.dataset?.id === String(msg.id)
@@ -108,6 +115,14 @@ export function appendMessageToList(listEl, msg) {
   const wrap = document.createElement('div')
   wrap.innerHTML = renderMessageHtml(msg)
   const node = wrap.firstElementChild
+  if (node && msg.type === 'module' && moduleRegistry?.canRender(msg)) {
+    const body = node.querySelector('.msg-body')
+    const rendered = moduleRegistry.render(msg, {
+      document: listEl.ownerDocument,
+      message: msg
+    })
+    if (body && rendered) body.replaceChildren(rendered)
+  }
   if (node) listEl.appendChild(node)
   listEl.scrollTop = listEl.scrollHeight
 }
@@ -117,7 +132,7 @@ export function appendMessageToList(listEl, msg) {
  * @param {Document} doc
  * @param {object} handlers
  */
-export function bindUi(doc, handlers) {
+export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
   const els = {
     roomId: doc.getElementById('room-id'),
     shareUrl: doc.getElementById('share-url'),
@@ -132,7 +147,10 @@ export function bindUi(doc, handlers) {
     messageInput: doc.getElementById('message-input'),
     sendBtn: doc.getElementById('send-btn'),
     fileInput: doc.getElementById('file-input'),
-    attachBtn: doc.getElementById('attach-btn')
+    attachBtn: doc.getElementById('attach-btn'),
+    torrentSeedBtn: doc.getElementById('torrent-seed-btn'),
+    torrentFileInput: doc.getElementById('torrent-file-input'),
+    torrentPreload: doc.getElementById('torrent-preload')
   }
 
   els.copyLink?.addEventListener('click', () => {
@@ -172,6 +190,16 @@ export function bindUi(doc, handlers) {
     if (els.fileInput) els.fileInput.value = ''
   })
 
+  els.torrentSeedBtn?.addEventListener('click', () => els.torrentFileInput?.click())
+  els.torrentFileInput?.addEventListener('change', () => {
+    const files = els.torrentFileInput?.files
+    if (files?.length) handlers.onSeedFiles?.(files)
+    if (els.torrentFileInput) els.torrentFileInput.value = ''
+  })
+  els.torrentPreload?.addEventListener('change', () => {
+    handlers.onTorrentPreloadChange?.(Boolean(els.torrentPreload.checked))
+  })
+
   return {
     els,
     setRoomId(id) {
@@ -195,8 +223,11 @@ export function bindUi(doc, handlers) {
     setStatus(s) {
       if (els.status) els.status.textContent = s
     },
+    setTorrentPreload(enabled) {
+      if (els.torrentPreload) els.torrentPreload.checked = Boolean(enabled)
+    },
     addMessage(msg) {
-      appendMessageToList(els.messages, msg)
+      appendMessageToList(els.messages, msg, moduleRegistry)
     },
     clearMessages() {
       if (els.messages) els.messages.innerHTML = ''

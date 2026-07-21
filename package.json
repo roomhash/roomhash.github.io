@@ -12,7 +12,10 @@
     "verify": "npm test && npm run build"
   },
   "dependencies": {
-    "@trystero-p2p/torrent": "^0.25.3"
+    "@trystero-p2p/torrent": "^0.25.3",
+    "dompurify": "^3.4.12",
+    "marked": "^18.0.7",
+    "webtorrent": "^3.0.16"
   },
   "devDependencies": {
     "vite": "^6.3.5"

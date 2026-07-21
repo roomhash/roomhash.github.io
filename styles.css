@@ -171,6 +171,25 @@ button.primary:hover {
   font-weight: 600;
 }
 
+.torrent-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 #messages {
   flex: 1 1 auto;
   min-height: 280px;
@@ -250,6 +269,75 @@ button.primary:hover {
   font-size: 0.8rem;
 }
 
+.torrent-card {
+  display: grid;
+  gap: 0.55rem;
+  min-width: min(32rem, 75vw);
+}
+
+.torrent-status {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.torrent-actions,
+.torrent-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.torrent-files {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.torrent-file {
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+.torrent-video {
+  display: block;
+  width: 100%;
+  max-height: 58vh;
+  background: #000;
+  border-radius: 8px;
+}
+
+.torrent-viewer:empty {
+  display: none;
+}
+
+.torrent-raw {
+  max-height: 32rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+
+.torrent-markdown {
+  max-height: 40rem;
+  overflow: auto;
+  padding: 0.25rem 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.torrent-markdown img {
+  max-width: 100%;
+}
+
 .composer {
   display: flex;
   gap: 0.5rem;
@@ -279,7 +367,8 @@ footer.note code {
   font-size: 0.78rem;
 }
 
-#file-input {
+#file-input,
+#torrent-file-input {
   display: none;
 }
 

@@ -9,6 +9,7 @@ import { APP_ID, DEFAULT_TRACKER } from './config.js'
 import { isDefaultTracker, validateTrackerUrl } from './room-url.js'
 import {
   createFileMessage,
+  createModuleMessage,
   createTextMessage,
   deserializeMessage,
   serializeMessage,
@@ -162,6 +163,7 @@ export class PeerSession {
    * @param {SessionEvents} [opts.events]
    * @param {(config: object, roomId: string) => RoomLike} [opts.joinRoom] inject transport
    * @param {boolean} [opts.useFileActions=true] send files via binary action when available
+   * @param {() => import('./message.js').ChatMessage[]} [opts.getHistory]
    */
   constructor(opts) {
     this.roomId = opts.roomId
@@ -172,6 +174,7 @@ export class PeerSession {
     this.events = opts.events || {}
     this.joinRoomFn = opts.joinRoom || null
     this.useFileActions = opts.useFileActions !== false
+    this.getHistory = opts.getHistory || (() => [])
     /** @type {RoomLike | null} */
     this.room = null
     /** @type {Set<string>} */
@@ -183,6 +186,7 @@ export class PeerSession {
     this._nickAction = null
     this._fileAction = null
     this._fileWireAction = null
+    this._historyAction = null
     this._relaySockets = []
     this.assembler = new FileAssembler()
     this._started = false
@@ -243,6 +247,7 @@ export class PeerSession {
     this._fileAction = this.room.makeAction('file')
     // Explicit chunk wire for protocol tests / fallback assembly path
     this._fileWireAction = this.room.makeAction('file-wire')
+    this._historyAction = this.room.makeAction('history')
 
     if (getRelaySockets) {
       this._watchRelaySockets(getRelaySockets)
@@ -255,6 +260,8 @@ export class PeerSession {
       this._updateConnectionStatus()
       // introduce ourselves
       this._nickAction.send(this.nickname, { target: peerId })
+      const history = this.getHistory().slice(-100).map(serializeMessage)
+      if (history.length) this._historyAction.send(history, { target: peerId })
     }
 
     this.room.onPeerLeave = (peerId) => {
@@ -280,6 +287,20 @@ export class PeerSession {
 
     this._nickAction.onMessage = (nick, { peerId }) => {
       this.peerNicks.set(peerId, String(nick))
+    }
+
+    this._historyAction.onMessage = (items, { peerId }) => {
+      if (!Array.isArray(items)) return
+      for (const item of items.slice(-100)) {
+        try {
+          const msg = deserializeMessage(item)
+          msg.peerId = peerId
+          msg.local = false
+          this.events.onMessage?.(msg)
+        } catch (err) {
+          this.events.onError?.(err instanceof Error ? err : new Error(String(err)))
+        }
+      }
     }
 
     // Trystero auto-chunk binary with metadata
@@ -390,6 +411,21 @@ export class PeerSession {
     })
     const wire = serializeMessage(msg)
     await this._chatAction?.send(wire)
+    this.events.onMessage?.(msg)
+    return msg
+  }
+
+  /** Send a data-only message handled by a locally registered UI module. */
+  async sendModule(module, payload, moduleVersion = 1) {
+    const msg = createModuleMessage({
+      module,
+      moduleVersion,
+      payload,
+      nickname: this.nickname,
+      peerId: this.selfId || undefined,
+      local: true
+    })
+    await this._chatAction?.send(serializeMessage(msg))
     this.events.onMessage?.(msg)
     return msg
   }
