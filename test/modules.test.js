@@ -18,6 +18,7 @@ describe('message modules', () => {
     assert.equal(isMagnetUri('magnet:?xt=urn:btih:abcdef'), true)
     assert.equal(isMagnetUri('https://example.com/file.mp4'), false)
     assert.equal(classifyTorrentFile({ name: 'clip.mp4' }), 'video')
+    assert.equal(classifyTorrentFile({ name: 'photo.webp' }), 'image')
     assert.equal(classifyTorrentFile({ name: 'README.md' }), 'markdown')
     assert.equal(classifyTorrentFile({ name: 'notes.txt' }), 'text')
     assert.equal(classifyTorrentFile({ name: 'archive.zip' }), 'download')

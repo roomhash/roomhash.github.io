@@ -21,6 +21,7 @@ export function classifyTorrentFile(file) {
   const name = String(file?.name || '').toLowerCase()
   const mime = String(file?.type || '').toLowerCase()
   if (mime.startsWith('video/') || /\.(mp4|m4v|webm|ogv|mov)$/.test(name)) return 'video'
+  if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif|svg)$/.test(name)) return 'image'
   if (mime === 'text/markdown' || /\.(md|markdown)$/.test(name)) return 'markdown'
   if (mime.startsWith('text/') || /\.(txt|log|csv|json)$/.test(name)) return 'text'
   return 'download'
@@ -35,15 +36,11 @@ function formatBytes(value) {
 }
 
 function getBlob(file) {
-  return new Promise((resolve, reject) => {
-    file.getBlob((error, blob) => (error ? reject(error) : resolve(blob)))
-  })
+  return file.blob()
 }
 
-function getBlobUrl(file) {
-  return new Promise((resolve, reject) => {
-    file.getBlobURL((error, url) => (error ? reject(error) : resolve(url)))
-  })
+async function getBlobUrl(file) {
+  return URL.createObjectURL(await getBlob(file))
 }
 
 export class TorrentMediaController {
@@ -182,6 +179,14 @@ async function openTorrentFile(doc, file, host) {
     video.playsInline = true
     host.appendChild(video)
     await file.streamTo(video)
+    return
+  }
+  if (kind === 'image') {
+    const image = doc.createElement('img')
+    image.className = 'torrent-image'
+    image.alt = file.name
+    image.src = await getBlobUrl(file)
+    host.appendChild(image)
     return
   }
   if (kind === 'text' || kind === 'markdown') {

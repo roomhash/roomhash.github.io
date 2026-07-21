@@ -135,7 +135,29 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     enableUpnp: byId('enable-upnp'),
     navToggle: byId('nav-toggle'),
     membersToggle: byId('members-toggle')
+    ,collapseSidebar: byId('collapse-sidebar')
+    ,collapseChannelList: byId('collapse-channel-list')
+    ,collapseMembers: byId('collapse-members')
   }
+
+  const layoutStore = doc.defaultView?.localStorage
+  const isNarrow = () => doc.defaultView?.matchMedia?.('(max-width: 720px)').matches
+  const isCompact = () => doc.defaultView?.matchMedia?.('(max-width: 1050px)').matches
+  const persistLayout = (key, enabled) => {
+    try { layoutStore?.setItem(`roomhash:layout:${key}`, String(enabled)) } catch { /* ignore */ }
+  }
+  const restoreLayout = (key) => {
+    try { return layoutStore?.getItem(`roomhash:layout:${key}`) === 'true' } catch { return false }
+  }
+  const syncCollapseAria = () => {
+    els.collapseSidebar?.setAttribute('aria-expanded', String(!doc.body.classList.contains('channel-rail-collapsed')))
+    els.collapseChannelList?.setAttribute('aria-expanded', String(!doc.body.classList.contains('channel-list-collapsed')))
+    els.collapseMembers?.setAttribute('aria-expanded', String(!doc.body.classList.contains('member-rail-collapsed')))
+  }
+  if (!isNarrow() && restoreLayout('channel-rail')) doc.body.classList.add('channel-rail-collapsed')
+  if (!isCompact() && restoreLayout('member-rail')) doc.body.classList.add('member-rail-collapsed')
+  if (restoreLayout('channel-list')) doc.body.classList.add('channel-list-collapsed')
+  syncCollapseAria()
 
   const run = async (task) => {
     try {
@@ -191,8 +213,33 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     messagesPerSecond: Number(els.relayFrequency?.value || 0)
   }))
   els.enableUpnp?.addEventListener('click', () => run(() => handlers.onEnableUpnp?.()))
-  els.navToggle?.addEventListener('click', () => doc.body.classList.toggle('channels-open'))
-  els.membersToggle?.addEventListener('click', () => doc.body.classList.toggle('members-open'))
+  const toggleChannelRail = () => {
+    if (isNarrow()) {
+      doc.body.classList.toggle('channels-open')
+      return
+    }
+    const collapsed = doc.body.classList.toggle('channel-rail-collapsed')
+    persistLayout('channel-rail', collapsed)
+    syncCollapseAria()
+  }
+  const toggleMemberRail = () => {
+    if (isCompact()) {
+      doc.body.classList.toggle('members-open')
+      return
+    }
+    const collapsed = doc.body.classList.toggle('member-rail-collapsed')
+    persistLayout('member-rail', collapsed)
+    syncCollapseAria()
+  }
+  els.navToggle?.addEventListener('click', toggleChannelRail)
+  els.collapseSidebar?.addEventListener('click', toggleChannelRail)
+  els.membersToggle?.addEventListener('click', toggleMemberRail)
+  els.collapseMembers?.addEventListener('click', toggleMemberRail)
+  els.collapseChannelList?.addEventListener('click', () => {
+    const collapsed = doc.body.classList.toggle('channel-list-collapsed')
+    persistLayout('channel-list', collapsed)
+    syncCollapseAria()
+  })
 
   return {
     els,

@@ -13,17 +13,30 @@
       <aside class="channel-rail" aria-label="Channels">
         <header class="brand-block">
           <div class="brand-mark" aria-hidden="true">RH</div>
-          <div><h1>RoomHash</h1><p>Peer mesh workspace</p></div>
+          <div class="brand-copy"><h1>RoomHash</h1><p>Peer mesh workspace</p></div>
+          <button id="collapse-sidebar" class="rail-collapse" type="button" aria-label="Collapse channel sidebar" aria-expanded="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
         </header>
         <section class="channel-section">
-          <div class="section-heading"><span>Channels</span><span class="section-kicker">local</span></div>
-          <div id="channel-list" class="channel-list"></div>
-          <label class="field-label" for="channel-input">Add channel UUID</label>
-          <div class="channel-add-row">
-            <input id="channel-input" type="text" spellcheck="false" placeholder="xxxxxxxx-xxxx-..." />
-            <button id="add-channel" type="button" aria-label="Add channel">+</button>
+          <div class="section-heading">
+            <span>Channels</span>
+            <div class="section-heading-actions">
+              <span class="section-kicker">local</span>
+              <button id="collapse-channel-list" class="section-collapse" type="button" aria-label="Collapse channel list" aria-expanded="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+            </div>
           </div>
-          <p id="channel-error" class="field-error" role="alert"></p>
+          <div class="channel-list-content">
+            <div id="channel-list" class="channel-list"></div>
+            <label class="field-label" for="channel-input">Add channel UUID</label>
+            <div class="channel-add-row">
+              <input id="channel-input" type="text" spellcheck="false" placeholder="xxxxxxxx-xxxx-..." />
+              <button id="add-channel" type="button" aria-label="Add channel">+</button>
+            </div>
+            <p id="channel-error" class="field-error" role="alert"></p>
+          </div>
         </section>
         <section class="channel-section discovered-section">
           <div class="section-heading"><span>Discovered</span><span class="section-kicker">mesh</span></div>
@@ -69,7 +82,15 @@
 
       <aside class="member-rail" aria-label="Members and network">
         <section class="rail-section members-section">
-          <div class="section-heading"><span>Online</span><span class="section-kicker">mesh</span></div>
+          <div class="section-heading">
+            <span>Online</span>
+            <div class="section-heading-actions">
+              <span class="section-kicker">mesh</span>
+              <button id="collapse-members" class="section-collapse" type="button" aria-label="Collapse member sidebar" aria-expanded="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
           <div id="online-list" class="online-list"></div>
         </section>
         <section class="rail-section network-card">
