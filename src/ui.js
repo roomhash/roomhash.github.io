@@ -111,6 +111,9 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     copyLink: byId('copy-link'),
     channelNameInput: byId('channel-name-input'),
     applyChannelName: byId('apply-channel-name'),
+    cancelChannelName: byId('cancel-channel-name'),
+    renameChannel: byId('rename-channel'),
+    channelNameEditor: byId('channel-name-editor'),
     trackerInput: byId('tracker-input'),
     applyTracker: byId('apply-tracker'),
     nickInput: byId('nick-input'),
@@ -146,6 +149,25 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
 
   applyDocumentTranslations(doc)
   if (els.languageSelect) els.languageSelect.value = getLanguagePreference()
+  const settingsTabs = [...doc.querySelectorAll('[data-settings-tab]')]
+  const settingsPanels = [...doc.querySelectorAll('[data-settings-panel]')]
+  const showSettingsPanel = (name) => {
+    for (const tab of settingsTabs) {
+      const active = tab.dataset.settingsTab === name
+      tab.classList.toggle('active', active)
+      tab.setAttribute('aria-selected', String(active))
+    }
+    for (const panel of settingsPanels) {
+      const active = panel.dataset.settingsPanel === name
+      panel.classList.toggle('active', active)
+      panel.hidden = !active
+    }
+  }
+  for (const tab of settingsTabs) {
+    tab.setAttribute('role', 'tab')
+    tab.addEventListener('click', () => showSettingsPanel(tab.dataset.settingsTab))
+  }
+  showSettingsPanel('general')
 
   const layoutStore = doc.defaultView?.localStorage
   const isNarrow = () => doc.defaultView?.matchMedia?.('(max-width: 720px)').matches
@@ -185,7 +207,25 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     if (event.key === 'Enter') handlers.onAddChannel?.(els.channelInput.value)
   })
   els.copyLink?.addEventListener('click', () => handlers.onCopyLink?.())
-  els.applyChannelName?.addEventListener('click', () => handlers.onChannelNameChange?.(els.channelNameInput?.value))
+  const closeChannelNameEditor = () => {
+    if (els.channelNameEditor) els.channelNameEditor.hidden = true
+  }
+  const saveChannelName = () => {
+    handlers.onChannelNameChange?.(els.channelNameInput?.value)
+    closeChannelNameEditor()
+  }
+  els.renameChannel?.addEventListener('click', () => {
+    if (!els.channelNameEditor) return
+    els.channelNameEditor.hidden = false
+    els.channelNameInput?.focus()
+    els.channelNameInput?.select()
+  })
+  els.applyChannelName?.addEventListener('click', saveChannelName)
+  els.cancelChannelName?.addEventListener('click', closeChannelNameEditor)
+  els.channelNameInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') saveChannelName()
+    if (event.key === 'Escape') closeChannelNameEditor()
+  })
   els.applyTracker?.addEventListener('click', () => handlers.onTrackerChange?.(els.trackerInput?.value))
   els.applyNick?.addEventListener('click', () => handlers.onNicknameChange?.(els.nickInput?.value))
   els.languageSelect?.addEventListener('change', () => handlers.onLanguageChange?.(els.languageSelect.value))
@@ -318,6 +358,7 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
       if (els.settingsError) els.settingsError.textContent = value ? localizeError(value) : ''
     },
     setRoomId(id, name = '') {
+      closeChannelNameEditor()
       if (els.roomId) els.roomId.textContent = name || `#${shortHash(id, 8)}`
       if (els.roomId) els.roomId.title = id
       if (els.roomContext) els.roomContext.textContent = name

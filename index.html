@@ -55,7 +55,24 @@
           <button id="nav-toggle" class="icon-button mobile-only" type="button" aria-label="Open channels" data-i18n-aria-label="aria.openChannels">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
           </button>
-          <div class="channel-identity"><strong id="room-id">#--------</strong><span id="room-context" data-i18n="room.context">A room carried by its peers</span></div>
+          <div class="channel-identity">
+            <div class="channel-title-row">
+              <strong id="room-id">#--------</strong>
+              <button id="rename-channel" class="channel-title-action" type="button" aria-label="Rename channel" title="Rename channel" data-i18n-aria-label="channels.rename" data-i18n-title="channels.rename">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16-.8 4.8L8 20l11-11-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg>
+              </button>
+            </div>
+            <span id="room-context" data-i18n="room.context">A room carried by its peers</span>
+            <div id="channel-name-editor" class="channel-name-editor" hidden>
+              <input id="channel-name-input" type="text" maxlength="40" placeholder="e.g. general" data-i18n-placeholder="settings.channelNamePlaceholder" />
+              <button id="apply-channel-name" class="channel-title-action confirm" type="button" aria-label="Save channel name" title="Save channel name" data-i18n-aria-label="channels.saveName" data-i18n-title="channels.saveName">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+              </button>
+              <button id="cancel-channel-name" class="channel-title-action" type="button" aria-label="Cancel" title="Cancel" data-i18n-aria-label="common.cancel" data-i18n-title="common.cancel">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+              </button>
+            </div>
+          </div>
           <div class="connection-summary">
             <span class="live-dot" aria-hidden="true"></span>
             <span><strong id="peer-count">0</strong> <span data-i18n="connection.direct">direct</span></span>
@@ -103,8 +120,15 @@
 
     <dialog id="settings-dialog" class="settings-dialog">
       <form method="dialog" class="settings-head"><div><span class="eyebrow" data-i18n="settings.node">RoomHash node</span><h2 data-i18n="common.settings">Settings</h2></div><button id="close-settings" class="icon-button" type="button" aria-label="Close settings" data-i18n-aria-label="aria.closeSettings">x</button></form>
-      <div class="settings-grid">
-        <section class="settings-section">
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-label="Settings categories" data-i18n-aria-label="settings.categories">
+          <button class="settings-tab active" type="button" data-settings-tab="general" data-i18n="settings.general">General</button>
+          <button class="settings-tab" type="button" data-settings-tab="channels" data-i18n="channels.label">Channels</button>
+          <button class="settings-tab" type="button" data-settings-tab="media" data-i18n="settings.media">Media</button>
+          <button class="settings-tab" type="button" data-settings-tab="network" data-i18n="settings.network">Network</button>
+        </nav>
+        <div class="settings-content">
+        <section class="settings-section active" data-settings-panel="general">
           <h3 data-i18n="settings.identity">Identity and discovery</h3>
           <label for="language-select" data-i18n="settings.language">Language</label>
           <select id="language-select"><option value="auto" data-i18n="settings.languageAuto">Auto (browser)</option><option value="zh-CN">简体中文</option><option value="en">English</option></select>
@@ -114,20 +138,18 @@
           <div class="input-action"><input id="tracker-input" type="text" spellcheck="false" /><button id="apply-tracker" type="button" data-i18n="common.apply">Apply</button></div>
           <label for="share-url" data-i18n="settings.currentLink">Current channel link</label>
           <div class="input-action"><input id="share-url" type="text" readonly /><button id="copy-link" type="button" data-i18n="common.copy">Copy</button></div>
-          <label for="channel-name-input"><span data-i18n="settings.channelName">Channel name</span> <span data-i18n="common.optional">(optional)</span></label>
-          <div class="input-action"><input id="channel-name-input" type="text" maxlength="40" placeholder="e.g. general" data-i18n-placeholder="settings.channelNamePlaceholder" /><button id="apply-channel-name" type="button" data-i18n="common.rename">Rename</button></div>
         </section>
-        <section class="settings-section">
+        <section class="settings-section" data-settings-panel="channels" hidden>
           <h3 data-i18n="settings.channelExchange">Channel exchange</h3>
           <label class="toggle-row" for="auto-add-channels"><input id="auto-add-channels" type="checkbox" /><span data-i18n="settings.autoAdd">Automatically add channels received from the mesh</span></label>
           <p class="helper" data-i18n="settings.autoAddHelp">Off by default. Discovered UUIDs remain reviewable in the channel rail.</p>
         </section>
-        <section class="settings-section">
+        <section class="settings-section" data-settings-panel="media" hidden>
           <h3 data-i18n="settings.mediaSwarm">Media swarm</h3>
           <label class="toggle-row" for="torrent-preload"><input id="torrent-preload" type="checkbox" /><span data-i18n="settings.autoPreload">Automatically preload shared torrents</span></label>
           <p class="helper" data-i18n="settings.mediaHelp">Attachments selected beside the composer are seeded and shared as torrent media cards.</p>
         </section>
-        <section class="settings-section">
+        <section class="settings-section" data-settings-panel="network" hidden>
           <h3 data-i18n="settings.relayLimits">Public relay limits</h3>
           <div class="settings-columns">
             <label for="relay-bandwidth"><span data-i18n="settings.bandwidth">Bandwidth</span> <span>KB/s</span><input id="relay-bandwidth" type="number" min="0" max="102400" /></label>
@@ -135,12 +157,12 @@
           </div>
           <button id="apply-relay" type="button" data-i18n="common.saveRelay">Save relay limits</button>
           <p id="relay-effective" class="helper"></p>
-        </section>
-        <section class="settings-section">
+          <div class="settings-divider"></div>
           <h3 data-i18n="settings.upnp">UPnP capability module</h3>
           <p class="helper" data-i18n="settings.upnpHelp">Available only when a desktop or headless RoomHash host supplies port mapping and an external reachability probe.</p>
           <button id="enable-upnp" type="button" disabled data-i18n="settings.upnpOpen">Open temporary port and probe</button>
         </section>
+        </div>
       </div>
       <p id="settings-error" class="field-error" role="alert"></p>
     </dialog>

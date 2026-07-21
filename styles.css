@@ -113,6 +113,14 @@ body.member-rail-collapsed #members-toggle { display: inline-grid; }
 .channel-identity { display: grid; gap: 2px; min-width: 0; }
 .channel-identity strong { font-family: var(--mono); font-size: 16px; }
 .channel-identity span { color: var(--muted); font-size: 11px; }
+.channel-title-row { display: flex; align-items: center; gap: 7px; }
+.channel-title-action { display: inline-grid; place-items: center; width: 32px; min-width: 32px; height: 32px; padding: 0; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 8px; }
+.channel-title-action:hover, .channel-title-action:focus-visible { color: var(--accent); background: var(--surface-2); border-color: var(--border); }
+.channel-title-action.confirm { color: var(--online); }
+.channel-title-action svg { width: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.channel-name-editor { display: grid; grid-template-columns: minmax(150px, 260px) 32px 32px; align-items: center; gap: 5px; position: absolute; z-index: 10; top: 58px; padding: 7px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+.channel-name-editor[hidden] { display: none; }
+.channel-name-editor input { min-height: 36px; }
 .connection-summary { display: flex; align-items: center; gap: 8px; margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .connection-summary #status { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .live-dot { width: 8px; height: 8px; background: var(--online); border-radius: 50%; box-shadow: 0 0 12px color-mix(in srgb, var(--online) 65%, transparent); }
@@ -157,16 +165,21 @@ body.member-rail-collapsed #members-toggle { display: inline-grid; }
 .toggle-row { display: flex; align-items: flex-start; gap: 9px; min-height: 44px; padding: 10px 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .toggle-row input { flex: 0 0 auto; margin-top: 2px; accent-color: var(--accent); }
 
-.settings-dialog { width: min(760px, calc(100vw - 28px)); max-height: min(820px, calc(100dvh - 28px)); padding: 0; overflow: hidden auto; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
+.settings-dialog { width: min(880px, calc(100vw - 28px)); height: min(680px, calc(100dvh - 28px)); max-height: calc(100dvh - 28px); padding: 0; overflow: hidden; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
 .settings-dialog::backdrop { background: rgba(3, 6, 10, .72); backdrop-filter: blur(5px); }
 .settings-head { position: sticky; z-index: 2; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; background: color-mix(in srgb, var(--surface) 92%, transparent); border-bottom: 1px solid var(--border); backdrop-filter: blur(14px); }
 .settings-head h2 { margin: 2px 0 0; font-size: 24px; letter-spacing: -.04em; }
 .eyebrow { color: var(--accent); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
-.settings-grid { display: grid; grid-template-columns: 1fr 1fr; }
-.settings-section { padding: 22px 24px; border-bottom: 1px solid var(--border); }
-.settings-section:nth-child(odd) { border-right: 1px solid var(--border); }
-.settings-section:last-child:nth-child(odd) { grid-column: 1 / -1; border-right: 0; }
-.settings-section h3 { margin: 0 0 16px; font-size: 14px; }
+.settings-layout { display: grid; grid-template-columns: 184px minmax(0, 1fr); height: calc(100% - 77px); min-height: 0; }
+.settings-nav { display: flex; flex-direction: column; gap: 4px; padding: 18px 12px; background: color-mix(in srgb, var(--bg) 68%, var(--surface)); border-right: 1px solid var(--border); }
+.settings-tab { min-height: 44px; padding: 0 14px; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 9px; text-align: left; font-size: 12px; font-weight: 700; }
+.settings-tab:hover { color: var(--text); background: var(--surface-2); }
+.settings-tab.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface-2)); border-color: color-mix(in srgb, var(--accent) 25%, var(--border)); }
+.settings-content { min-height: 0; overflow: auto; }
+.settings-section { max-width: 620px; padding: 28px 32px 40px; }
+.settings-section[hidden] { display: none; }
+.settings-section h3 { margin: 0 0 18px; font-size: 15px; }
+.settings-divider { height: 1px; margin: 28px 0; background: var(--border); }
 .settings-section > label:not(.toggle-row), .settings-columns label { display: grid; gap: 6px; margin: 12px 0 6px; color: var(--muted); font-size: 11px; }
 .settings-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .settings-columns label span { color: var(--faint); }
@@ -175,7 +188,7 @@ input[type='text'], input[type='number'], select { min-height: 44px; padding: 0 
 select { width: 100%; color-scheme: dark; }
 .input-action button, .settings-section > button { padding: 0 14px; border: 1px solid var(--border); background: var(--surface-2); border-radius: var(--radius-sm); }
 .input-action button:hover, .settings-section > button:hover { border-color: var(--accent); }
-.settings-dialog > .field-error { padding: 0 24px 18px; }
+.settings-dialog > .field-error { position: absolute; right: 24px; bottom: 0; left: 208px; margin: 0; padding: 8px 0; background: var(--surface); }
 
 .torrent-card { display: grid; gap: 10px; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 .torrent-status { color: var(--muted); font-family: var(--mono); font-size: 10px; }
@@ -226,6 +239,10 @@ select { width: 100%; color-scheme: dark; }
   .messages { padding: 18px 14px; }
   .composer-wrap { margin: 0 10px max(10px, env(safe-area-inset-bottom)); padding-left: 12px; }
   .send-button { padding: 0 14px; }
-  .settings-grid { grid-template-columns: 1fr; }
-  .settings-section:nth-child(odd) { border-right: 0; }
+  .settings-dialog { height: min(760px, calc(100dvh - 20px)); }
+  .settings-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .settings-nav { position: sticky; z-index: 1; top: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 8px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .settings-tab { min-height: 40px; padding: 0 5px; text-align: center; font-size: 11px; }
+  .settings-section { padding: 22px 18px 48px; }
+  .settings-dialog > .field-error { left: 18px; right: 18px; }
 }
