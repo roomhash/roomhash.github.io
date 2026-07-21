@@ -561,10 +561,10 @@ async function boot() {
       const input = Array.from(files)
       const appManifest = await detectWasmAppManifest(input)
       ui?.setStatus({ key: 'status.creatingTorrent' })
-      const torrent = await torrentMedia.seed(files)
+      const torrent = await torrentMedia.seed(input)
       const payload = {
         magnet: torrent.magnetURI,
-        title: torrent.name || Array.from(files)[0]?.name || 'Shared files',
+        title: torrent.name || input[0]?.name || 'Shared files',
         files: torrent.files.map((file) => ({
           name: file.name,
           size: file.length,

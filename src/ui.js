@@ -288,9 +288,9 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
 
   els.attachBtn?.addEventListener('click', () => els.fileInput?.click())
   els.fileInput?.addEventListener('change', () => {
-    const files = els.fileInput?.files
-    if (files?.length) run(() => handlers.onSeedFiles?.(files))
+    const files = Array.from(els.fileInput?.files || [])
     els.fileInput.value = ''
+    if (files.length) run(() => handlers.onSeedFiles?.(files))
   })
   els.torrentPreload?.addEventListener('change', () => handlers.onTorrentPreloadChange?.(els.torrentPreload.checked))
   els.autoAddChannels?.addEventListener('change', () => handlers.onAutoAddChannelsChange?.(els.autoAddChannels.checked))
