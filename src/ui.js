@@ -31,6 +31,14 @@ export function formatTime(ts) {
   }
 }
 
+function formatBytes(value) {
+  const bytes = Number(value || 0)
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`
+  return `${(bytes / 1024 ** 3).toFixed(1)} GB`
+}
+
 export function shortHash(value, length = 6) {
   return String(value || '').replace(/-/g, '').slice(0, length)
 }
