@@ -17,6 +17,7 @@ import { normalizeNickname, resolveNickname } from './nickname.js'
 import { createMeshSession } from './network/mesh-session.js'
 import { RelayLimiter } from './network/gossip.js'
 import { RuntimeCapabilities } from './network/runtime-capabilities.js'
+import { DEMO_PIXEL_GARDEN, DEMO_VIDEO } from './demo-content.js'
 import {
   appendMessage,
   loadAutoAddChannels,
@@ -75,6 +76,7 @@ const torrentMedia = new TorrentMediaController({
 const moduleRegistry = new MessageModuleRegistry().register(
   createTorrentMediaModule(torrentMedia)
 )
+torrentMedia.onSeedsChanged((seeds) => ui?.setLocalSeeds(seeds))
 
 function isChannelId(value) {
   return CHANNEL_ID_RE.test(String(value || '').trim())
@@ -498,6 +500,18 @@ async function boot() {
       renderActiveChannel({ clearMessages: true })
       updatePublicStatus()
     },
+    async onOpenFileCabinet() {
+      ui?.setLocalSeeds(await torrentMedia.getLocalSeeds())
+    },
+    async onStopSeed(infoHash) {
+      ui?.setLocalSeeds(await torrentMedia.stopSeed(infoHash))
+    },
+    async onResumeSeed(infoHash) {
+      ui?.setLocalSeeds(await torrentMedia.resumeSeed(infoHash))
+    },
+    async onRemoveSeed(infoHash) {
+      ui?.setLocalSeeds(await torrentMedia.removeSeed(infoHash))
+    },
     async onSendText(text) {
       const session = activeSession()
       if (!session) throw new Error('channel is still connecting')
@@ -511,6 +525,16 @@ async function boot() {
       } else {
         await session.sendText(text)
       }
+    },
+    async onShareDemoVideo() {
+      const session = activeSession()
+      if (!session) throw new Error('channel is still connecting')
+      await session.sendModule(TORRENT_MEDIA_MODULE, DEMO_VIDEO)
+    },
+    async onShareDemoGame() {
+      const session = activeSession()
+      if (!session) throw new Error('channel is still connecting')
+      await session.sendModule(TORRENT_MEDIA_MODULE, DEMO_PIXEL_GARDEN)
     },
     async onSeedFiles(files) {
       const session = activeSession()
@@ -526,7 +550,7 @@ async function boot() {
           mime: file.type || ''
         }))
       })
-      ui?.setStatus({ key: 'status.torrentPublished' })
+      ui?.setStatus({ key: torrent.roomHashCached ? 'status.torrentPublishedCached' : 'status.torrentCacheFailed' })
     },
     onTorrentPreloadChange(enabled) {
       torrentMedia.setAutoPreload(enabled)

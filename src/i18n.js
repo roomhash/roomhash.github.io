@@ -42,11 +42,28 @@ const catalog = {
   'connection.direct': ['direct', '直连'],
   'composer.placeholder': ['Message this channel', '发送消息到此频道'],
   'composer.attach': ['Seed and share files', '做种并分享文件'],
+  'demo.label': ['RoomHash demos', 'RoomHash 演示'],
+  'demo.title': ['Try RoomHash together', '一起试试 RoomHash'],
+  'demo.description': ['Share a streamable video or invite the room into a peer-to-peer Pixel Garden.', '分享可流式播放的视频，或邀请聊天室加入点对点像素花园。'],
+  'demo.shareVideo': ['Share video', '分享视频'],
+  'demo.playGame': ['Play game', '开始游戏'],
+  'demo.dismiss': ['Permanently dismiss demo notice', '永久关闭演示提示'],
+  'demo.restore': ['Show demo notice again', '重新显示演示提示'],
   'members.online': ['Online', '在线成员'],
   'members.peer': ['Peer', '节点'],
   'members.you': ['you', '你'],
   'members.direct': ['Directly connected', '已直接连接'],
   'members.mesh': ['Reachable through mesh', '可通过 Mesh 到达'],
+  'cabinet.title': ['Local seeds', '本地文件柜'],
+  'cabinet.open': ['Open local file cabinet', '打开本地文件柜'],
+  'cabinet.close': ['Close file cabinet', '关闭文件柜'],
+  'cabinet.empty': ['No locally cached seeds.', '暂无本地缓存的种子。'],
+  'cabinet.seeding': ['Seeding', '做种中'],
+  'cabinet.stopped': ['Stopped', '已停止'],
+  'cabinet.stop': ['Stop', '停止做种'],
+  'cabinet.resume': ['Resume', '恢复做种'],
+  'cabinet.remove': ['Remove', '移除'],
+  'cabinet.meta': ['{files} files · {size}', '{files} 个文件 · {size}'],
   'relay.state': ['Relay state', '转发状态'],
   'relay.private': ['Private / unknown', '私有 / 未知'],
   'relay.public': ['Public relay', '公网转发节点'],
@@ -102,6 +119,8 @@ const catalog = {
   'status.channelCopyFailed': ['unable to copy channel link', '无法复制频道链接'],
   'status.creatingTorrent': ['creating torrent', '正在创建 Torrent'],
   'status.torrentPublished': ['torrent published; keep this tab open to seed', 'Torrent 已发布；请保持此标签页打开以继续做种'],
+  'status.torrentPublishedCached': ['torrent published and cached for automatic reseeding', 'Torrent 已发布并缓存，刷新后会自动恢复做种'],
+  'status.torrentCacheFailed': ['torrent published, but browser storage could not cache it', 'Torrent 已发布，但浏览器存储无法缓存该文件'],
   'status.upnpChecking': ['Opening a temporary UPnP mapping and probing it.', '正在打开临时 UPnP 映射并探测。'],
   'status.bootFailed': ['boot failed: {message}', '启动失败：{message}'],
   'presence.mesh': ['{name} (mesh)', '{name}（Mesh）'],
@@ -112,6 +131,20 @@ const catalog = {
   'message.unsupportedModule': ['Unsupported message module: {module}', '不支持的消息模块：{module}'],
   'torrent.shared': ['Shared torrent', '分享的 Torrent'],
   'torrent.loading': ['Loading torrent metadata...', '正在加载 Torrent 元数据...'],
+  'torrent.tracker': ['Tracker: {tracker}', 'Tracker：{tracker}'],
+  'torrent.peers': ['Peers: {count}', '节点：{count}'],
+  'torrent.connection': ['State: {state}', '状态：{state}'],
+  'torrent.connecting': ['connecting', '连接中'],
+  'torrent.connected': ['connected', '已连接'],
+  'torrent.metadataReady': ['metadata ready', '元数据已就绪'],
+  'torrent.noPeers': ['waiting for WebRTC peers', '等待 WebRTC 节点'],
+  'torrent.trackerWarning': ['tracker warning', 'Tracker 警告'],
+  'torrent.trackerError': ['tracker unavailable', 'Tracker 不可用'],
+  'torrent.seeding': ['seeding', '做种中'],
+  'torrent.failed': ['failed', '失败'],
+  'torrent.invalidState': ['invalid magnet', '磁力链无效'],
+  'torrent.noWebRtcSeed': ['No WebRTC seed is currently available. Retry when a seeder is online.', '暂无可用 WebRTC 做种节点，请等待做种者上线后重试。'],
+  'torrent.retry': ['Retry', '重试'],
   'torrent.preload': ['Preload', '预加载'],
   'torrent.preloading': ['Preloading', '预加载中'],
   'torrent.copyMagnet': ['Copy magnet', '复制磁力链'],
@@ -132,6 +165,7 @@ const catalog = {
   'error.channelConnecting': ['This channel is still connecting.', '频道仍在连接中。'],
   'error.invalidMagnet': ['Invalid magnet link.', '磁力链无效。'],
   'error.selectFile': ['Select at least one file.', '请至少选择一个文件。']
+  ,'error.cachedSeedUnavailable': ['Cached seed is unavailable.', '本地缓存的种子不可用。']
 }
 
 function detectBrowserLanguage() {
@@ -182,6 +216,7 @@ export function localizeError(value) {
   if (/channel is still connecting/i.test(message)) return t('error.channelConnecting')
   if (/invalid magnet link/i.test(message)) return t('error.invalidMagnet')
   if (/select at least one file/i.test(message)) return t('error.selectFile')
+  if (/cached seed is unavailable/i.test(message)) return t('error.cachedSeedUnavailable')
   return message
 }
 

@@ -1,0 +1,13 @@
+{
+  "id": "org.roomhash.pixel-garden",
+  "name": "Pixel Garden",
+  "version": "0.1.0",
+  "runtime": "rust-wasm",
+  "entry": "index.html",
+  "wasm": "pixel_garden.wasm",
+  "permissions": [
+    "p2p.state.sync",
+    "storage.local"
+  ],
+  "protocol": "pixel-garden-v1"
+}

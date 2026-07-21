@@ -3,6 +3,8 @@
 import { normalizeMimeType } from './message.js'
 import { applyDocumentTranslations, getLanguage, getLanguagePreference, localizeError, statusText, t } from './i18n.js'
 
+const DEMO_DISMISSED_KEY = 'roomhash:demo-notification-dismissed'
+
 export function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -126,6 +128,11 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     fileInput: byId('file-input'),
     attachBtn: byId('attach-btn'),
     torrentPreload: byId('torrent-preload'),
+    demoNotification: byId('demo-notification'),
+    shareDemoVideo: byId('share-demo-video'),
+    shareDemoGame: byId('share-demo-game'),
+    dismissDemoNotification: byId('dismiss-demo-notification'),
+    restoreDemoNotification: byId('restore-demo-notification'),
     onlineList: byId('online-list'),
     settingsDialog: byId('settings-dialog'),
     openSettings: byId('open-settings'),
@@ -145,6 +152,9 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     ,collapseChannelList: byId('collapse-channel-list')
     ,collapseMembers: byId('collapse-members')
     ,languageSelect: byId('language-select')
+    ,fileCabinet: byId('file-cabinet')
+    ,closeFileCabinet: byId('close-file-cabinet')
+    ,seedList: byId('seed-list')
   }
 
   applyDocumentTranslations(doc)
@@ -201,6 +211,25 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
       if (els.status) els.status.textContent = t('status.error', { message: localizeError(error) })
     }
   }
+
+  const demoStorage = doc.defaultView?.localStorage
+  const syncDemoNotification = () => {
+    if (els.demoNotification) {
+      els.demoNotification.hidden = demoStorage?.getItem(DEMO_DISMISSED_KEY) === '1'
+    }
+  }
+  syncDemoNotification()
+
+  els.shareDemoVideo?.addEventListener('click', () => run(() => handlers.onShareDemoVideo?.()))
+  els.shareDemoGame?.addEventListener('click', () => run(() => handlers.onShareDemoGame?.()))
+  els.dismissDemoNotification?.addEventListener('click', () => {
+    demoStorage?.setItem(DEMO_DISMISSED_KEY, '1')
+    syncDemoNotification()
+  })
+  els.restoreDemoNotification?.addEventListener('click', () => {
+    demoStorage?.removeItem(DEMO_DISMISSED_KEY)
+    syncDemoNotification()
+  })
 
   els.addChannel?.addEventListener('click', () => handlers.onAddChannel?.(els.channelInput?.value))
   els.channelInput?.addEventListener('keydown', (event) => {
@@ -262,6 +291,19 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     messagesPerSecond: Number(els.relayFrequency?.value || 0)
   }))
   els.enableUpnp?.addEventListener('click', () => run(() => handlers.onEnableUpnp?.()))
+  let fileCabinetOpen = false
+  const setFileCabinetOpen = (open) => {
+    fileCabinetOpen = Boolean(open)
+    if (els.fileCabinet) els.fileCabinet.hidden = !fileCabinetOpen
+    if (fileCabinetOpen) {
+      doc.body.classList.remove('member-rail-collapsed')
+      if (isCompact()) doc.body.classList.add('members-open')
+      persistLayout('member-rail', false)
+      handlers.onOpenFileCabinet?.()
+    }
+    syncCollapseAria()
+  }
+  els.closeFileCabinet?.addEventListener('click', () => setFileCabinetOpen(false))
   const toggleChannelRail = () => {
     if (isNarrow()) {
       doc.body.classList.toggle('channels-open')
@@ -395,6 +437,19 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
         avatar.textContent = String(member.nickname || '?').slice(0, 1).toUpperCase()
         const copy = doc.createElement('span')
         copy.className = 'member-copy'
+        if (member.self) {
+          const cabinet = doc.createElement('button')
+          cabinet.className = `member-cabinet${fileCabinetOpen ? ' active' : ''}`
+          cabinet.type = 'button'
+          cabinet.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4z"/><path d="M7 4h10l2 3H5l2-3Z"/><path d="M9 11h6"/></svg>'
+          cabinet.setAttribute('aria-label', t('cabinet.open'))
+          cabinet.setAttribute('aria-expanded', String(fileCabinetOpen))
+          cabinet.title = t('cabinet.open')
+          cabinet.addEventListener('click', () => setFileCabinetOpen(!fileCabinetOpen))
+          item.append(avatar, cabinet)
+        } else {
+          item.appendChild(avatar)
+        }
         const name = doc.createElement('strong')
         name.textContent = member.nickname || t('members.peer')
         const hash = doc.createElement('small')
@@ -403,8 +458,52 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
         const dot = doc.createElement('span')
         dot.className = `member-dot${member.direct || member.self ? ' direct' : ' mesh'}`
         dot.title = member.direct || member.self ? t('members.direct') : t('members.mesh')
-        item.append(avatar, copy, dot)
+        item.append(copy, dot)
         els.onlineList.appendChild(item)
+      }
+    },
+    setLocalSeeds(seeds = []) {
+      if (!els.seedList) return
+      els.seedList.replaceChildren()
+      if (!seeds.length) {
+        const empty = doc.createElement('p')
+        empty.className = 'empty-hint'
+        empty.textContent = t('cabinet.empty')
+        els.seedList.appendChild(empty)
+        return
+      }
+      for (const seed of seeds) {
+        const item = doc.createElement('article')
+        item.className = 'seed-item'
+        const head = doc.createElement('div')
+        head.className = 'seed-item-head'
+        const name = doc.createElement('strong')
+        name.textContent = seed.name
+        name.title = seed.name
+        const state = doc.createElement('span')
+        state.className = `seed-state ${seed.active ? 'active' : 'stopped'}`
+        state.textContent = t(seed.active ? 'cabinet.seeding' : 'cabinet.stopped')
+        head.append(name, state)
+        const meta = doc.createElement('small')
+        meta.textContent = t('cabinet.meta', { files: seed.files, size: formatBytes(seed.size) })
+        const hash = doc.createElement('code')
+        hash.textContent = seed.infoHash
+        const actions = doc.createElement('div')
+        actions.className = 'seed-actions'
+        const toggle = doc.createElement('button')
+        toggle.type = 'button'
+        toggle.textContent = t(seed.active ? 'cabinet.stop' : 'cabinet.resume')
+        toggle.addEventListener('click', () => run(() => seed.active
+          ? handlers.onStopSeed?.(seed.infoHash)
+          : handlers.onResumeSeed?.(seed.infoHash)))
+        const remove = doc.createElement('button')
+        remove.type = 'button'
+        remove.className = 'danger-action'
+        remove.textContent = t('cabinet.remove')
+        remove.addEventListener('click', () => run(() => handlers.onRemoveSeed?.(seed.infoHash)))
+        actions.append(toggle, remove)
+        item.append(head, meta, hash, actions)
+        els.seedList.appendChild(item)
       }
     },
     setTorrentPreload(enabled) {

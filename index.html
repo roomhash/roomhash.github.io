@@ -83,6 +83,19 @@
           </button>
         </header>
 
+        <section id="demo-notification" class="demo-notification" aria-label="RoomHash demos" data-i18n-aria-label="demo.label">
+          <div class="demo-notification-mark" aria-hidden="true">RH</div>
+          <div class="demo-notification-copy">
+            <strong data-i18n="demo.title">Try RoomHash together</strong>
+            <span data-i18n="demo.description">Share a streamable video or invite the room into a peer-to-peer Pixel Garden.</span>
+          </div>
+          <div class="demo-notification-actions">
+            <button id="share-demo-video" class="demo-action primary" type="button" data-i18n="demo.shareVideo">Share video</button>
+            <button id="share-demo-game" class="demo-action" type="button" data-i18n="demo.playGame">Play game</button>
+          </div>
+          <button id="dismiss-demo-notification" class="demo-dismiss" type="button" aria-label="Permanently dismiss demo notice" title="Permanently dismiss" data-i18n-aria-label="demo.dismiss" data-i18n-title="demo.dismiss">x</button>
+        </section>
+
         <section id="messages" class="messages" role="log" aria-live="polite" aria-relevant="additions"></section>
 
         <section class="composer-wrap" aria-label="Message composer" data-i18n-aria-label="aria.composer">
@@ -109,6 +122,15 @@
             </div>
           </div>
           <div id="online-list" class="online-list"></div>
+        </section>
+        <section id="file-cabinet" class="rail-section file-cabinet" hidden>
+          <div class="section-heading">
+            <span data-i18n="cabinet.title">Local seeds</span>
+            <button id="close-file-cabinet" class="section-collapse" type="button" aria-label="Close file cabinet" data-i18n-aria-label="cabinet.close">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+          </div>
+          <div id="seed-list" class="seed-list"><p class="empty-hint" data-i18n="cabinet.empty">No locally cached seeds.</p></div>
         </section>
         <section class="rail-section network-card">
           <div class="section-heading"><span data-i18n="relay.state">Relay state</span></div>
@@ -148,6 +170,7 @@
           <h3 data-i18n="settings.mediaSwarm">Media swarm</h3>
           <label class="toggle-row" for="torrent-preload"><input id="torrent-preload" type="checkbox" /><span data-i18n="settings.autoPreload">Automatically preload shared torrents</span></label>
           <p class="helper" data-i18n="settings.mediaHelp">Attachments selected beside the composer are seeded and shared as torrent media cards.</p>
+          <button id="restore-demo-notification" class="settings-secondary-action" type="button" data-i18n="demo.restore">Show demo notice again</button>
         </section>
         <section class="settings-section" data-settings-panel="network" hidden>
           <h3 data-i18n="settings.relayLimits">Public relay limits</h3>
