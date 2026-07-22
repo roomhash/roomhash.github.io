@@ -532,6 +532,13 @@ async function boot() {
     async onRemoveSeed(infoHash) {
       ui?.setLocalSeeds(await torrentMedia.removeSeed(infoHash))
     },
+    async onShareSeed(infoHash) {
+      const session = activeSession()
+      if (!session) throw new Error('channel is still connecting')
+      const payload = await torrentMedia.prepareLocalSeedShare(infoHash)
+      await session.sendModule(TORRENT_MEDIA_MODULE, payload)
+      ui?.setStatus({ key: 'cabinet.sent' })
+    },
     async onSendText(text) {
       const session = activeSession()
       if (!session) throw new Error('channel is still connecting')

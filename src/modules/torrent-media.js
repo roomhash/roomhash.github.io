@@ -56,6 +56,27 @@ export function classifyTorrentFile(file) {
   return 'download'
 }
 
+export function createTorrentMediaPayload(source) {
+  const magnet = normalizeMagnetUri(source?.magnetURI)
+  if (!isMagnetUri(magnet)) throw new Error('cached seed has no valid magnet link')
+  const files = Array.from(source?.files || []).map((file) => {
+    const rawSize = Number(file?.length ?? file?.size ?? file?.blob?.size ?? 0)
+    return {
+      name: String(file?.name || file?.path || ''),
+      size: Number.isFinite(rawSize) && rawSize >= 0 ? rawSize : 0,
+      mime: String(file?.type || file?.mime || file?.blob?.type || '')
+    }
+  })
+  if (!files.length || files.some((file) => !file.name)) {
+    throw new Error('cached seed has no shareable files')
+  }
+  return {
+    magnet,
+    title: String(source?.name || files[0].name || 'Shared files'),
+    files
+  }
+}
+
 function formatBytes(value) {
   const bytes = Number(value || 0)
   if (bytes < 1024) return `${bytes} B`
@@ -81,6 +102,7 @@ export class TorrentMediaController {
     this.startPromise = null
     this.cache = cache
     this.cacheWrites = new Map()
+    this.seedRestorePromises = new Map()
     this.watchedTorrents = new WeakSet()
     this.torrentObservers = new WeakMap()
     this.localSeeds = new Map()
@@ -147,29 +169,58 @@ export class TorrentMediaController {
   _restoreCachedRecord(record) {
     const torrent = this.client.add(new Uint8Array(record.torrentFile), { announce: this.trackers })
     this._configureTrackerSockets(torrent)
+    let resolveRestore
+    let rejectRestore
+    let restoreFinished = false
+    const restorePromise = new Promise((resolve, reject) => {
+      resolveRestore = resolve
+      rejectRestore = reject
+    })
+    this.seedRestorePromises.set(record.infoHash, restorePromise)
+    const failRestore = (error) => {
+      const entry = this.localSeeds.get(record.infoHash)
+      if (entry) entry.active = false
+      this._emitSeedsChanged()
+      if (restoreFinished) return
+      restoreFinished = true
+      rejectRestore(error instanceof Error ? error : new Error(String(error)))
+    }
     const restore = () => {
       try {
         const cachedByPath = new Map(record.files.map((file) => [file.path || file.name, file]))
         const streams = torrent.files.map((file) => cachedByPath.get(file.path || file.name)?.blob?.stream?.())
         if (streams.some((stream) => !stream)) throw new Error('cached torrent files do not match metadata')
-        this._registerTorrent(torrent, true)
         torrent.load(streams, (error) => {
-          if (error) console.warn(`Unable to restore cached torrent ${record.infoHash}`, error)
+          if (error) {
+            failRestore(error)
+            return
+          }
+          if (restoreFinished) return
+          restoreFinished = true
+          this._registerTorrent(torrent, true)
+          resolveRestore(torrent)
         })
         this._watchForCompletion(torrent)
       } catch (error) {
-        console.warn(`Unable to restore cached torrent ${record.infoHash}`, error)
-        this.localSeeds.get(record.infoHash).active = false
-        this._emitSeedsChanged()
+        failRestore(error)
       }
     }
     if (torrent.ready) restore()
     else torrent.once('ready', restore)
-    torrent.once('error', () => {
-      const entry = this.localSeeds.get(record.infoHash)
-      if (entry) entry.active = false
-      this._emitSeedsChanged()
-    })
+    torrent.once('error', failRestore)
+    restorePromise.then(
+      () => {
+        if (this.seedRestorePromises.get(record.infoHash) === restorePromise) {
+          this.seedRestorePromises.delete(record.infoHash)
+        }
+      },
+      (error) => {
+        if (this.seedRestorePromises.get(record.infoHash) === restorePromise) {
+          this.seedRestorePromises.delete(record.infoHash)
+        }
+        console.warn(`Unable to restore cached torrent ${record.infoHash}`, error)
+      }
+    )
     return torrent
   }
 
@@ -186,7 +237,10 @@ export class TorrentMediaController {
     this._configureTrackerSockets(torrent)
     onTorrent?.(torrent)
     this._watchForCompletion(torrent)
-    return this._waitForMetadata(torrent)
+    const readyTorrent = await this._waitForMetadata(torrent)
+    const cachedRestore = this.seedRestorePromises.get(readyTorrent.infoHash)
+    if (cachedRestore) await cachedRestore
+    return readyTorrent
   }
 
   async seed(files) {
@@ -312,6 +366,30 @@ export class TorrentMediaController {
     return this.getLocalSeedsSnapshot()
   }
 
+  async hasCached(infoHash, { entry = '', size } = {}) {
+    const normalized = String(infoHash || '').trim().toLowerCase()
+    if (!/^[a-f0-9]{40}$/.test(normalized)) return false
+    const expectedSize = Number(size)
+    const matchesEntry = (files) => {
+      const file = Array.from(files || []).find((item) => {
+        const path = String(item?.path || item?.name || '')
+        return !entry || path === entry || path.endsWith(`/${entry}`)
+      })
+      if (!file) return false
+      if (!Number.isFinite(expectedSize) || expectedSize < 0) return true
+      return Number(file.length ?? file.size ?? file.blob?.size) === expectedSize
+    }
+
+    const active = this.client ? await this.client.get(normalized) : null
+    if (active?.done && matchesEntry(active.files)) return true
+    try {
+      const record = await this.cache.get(normalized)
+      return Boolean(record?.torrentFile && matchesEntry(record.files))
+    } catch {
+      return false
+    }
+  }
+
   async stopSeed(infoHash) {
     await this.start()
     const torrent = await this.client.get(infoHash)
@@ -324,12 +402,32 @@ export class TorrentMediaController {
 
   async resumeSeed(infoHash) {
     await this.start()
-    if (await this.client.get(infoHash)) return this.getLocalSeedsSnapshot()
+    if (await this.client.get(infoHash)) {
+      const pending = this.seedRestorePromises.get(infoHash)
+      if (pending) await pending
+      return this.getLocalSeedsSnapshot()
+    }
     const record = await this.cache.get(infoHash)
     if (!record) throw new Error('cached seed is unavailable')
     this._registerCachedRecord(record, false)
     this._restoreCachedRecord(record)
+    const pending = this.seedRestorePromises.get(infoHash)
+    if (pending) await pending
     return this.getLocalSeedsSnapshot()
+  }
+
+  async prepareLocalSeedShare(infoHash) {
+    await this.start()
+    let torrent = await this.client.get(infoHash)
+    if (!torrent) {
+      await this.resumeSeed(infoHash)
+      torrent = await this.client.get(infoHash)
+    } else {
+      const pending = this.seedRestorePromises.get(infoHash)
+      if (pending) await pending
+    }
+    if (!torrent) throw new Error('cached seed could not resume')
+    return createTorrentMediaPayload(torrent)
   }
 
   async removeSeed(infoHash) {

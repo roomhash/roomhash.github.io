@@ -692,6 +692,18 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
         hash.textContent = seed.infoHash
         const actions = doc.createElement('div')
         actions.className = 'seed-actions'
+        const share = doc.createElement('button')
+        share.type = 'button'
+        share.className = 'seed-share-action'
+        share.textContent = t('cabinet.send')
+        share.addEventListener('click', () => run(async () => {
+          share.disabled = true
+          try {
+            await handlers.onShareSeed?.(seed.infoHash)
+          } finally {
+            share.disabled = false
+          }
+        }))
         const toggle = doc.createElement('button')
         toggle.type = 'button'
         toggle.textContent = t(seed.active ? 'cabinet.stop' : 'cabinet.resume')
@@ -703,7 +715,7 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
         remove.className = 'danger-action'
         remove.textContent = t('cabinet.remove')
         remove.addEventListener('click', () => run(() => handlers.onRemoveSeed?.(seed.infoHash)))
-        actions.append(toggle, remove)
+        actions.append(share, toggle, remove)
         item.append(head, meta, hash, actions)
         els.seedList.appendChild(item)
       }

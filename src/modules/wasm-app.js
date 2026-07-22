@@ -9,6 +9,7 @@ export const SUPPORTED_WASM_ABIS = new Set(['roomhash-pixel-grid-v1', 'roomhash-
 
 const MAX_WASM_BYTES = 10 * 1024 * 1024
 const TRUST_PREFIX = 'roomhash:wasm-trust:'
+const TRUST_VERSION = 'v2'
 
 function appDisplayName(manifest, fallback = '') {
   return localizeAppMetadata(manifest, getLanguage()).name || fallback || manifest?.id || 'WASM App'
@@ -38,6 +39,45 @@ function infoHashFromMagnet(magnet) {
     return exactTopic ? exactTopic.slice('urn:btih:'.length) : ''
   } catch {
     return ''
+  }
+}
+
+function normalizedWasmSha(manifest) {
+  const value = String(manifest?.sha256 || '').trim().toLowerCase()
+  return /^[a-f0-9]{64}$/.test(value) ? value : ''
+}
+
+export function normalizedWasmPermissions(manifest) {
+  const permissions = Array.isArray(manifest?.permissions) ? manifest.permissions : []
+  return [...new Set(permissions.filter((permission) => typeof permission === 'string'))].sort()
+}
+
+export function wasmTrustKey(manifest) {
+  const digest = normalizedWasmSha(manifest)
+  if (!digest) return ''
+  const permissions = encodeURIComponent(JSON.stringify(normalizedWasmPermissions(manifest)))
+  return `${TRUST_PREFIX}${TRUST_VERSION}:${digest}:${permissions}`
+}
+
+function trustStorage(doc) {
+  try { return doc?.defaultView?.localStorage || null } catch { return null }
+}
+
+export function isWasmAppTrusted(doc, manifest) {
+  const key = wasmTrustKey(manifest)
+  if (!key) return false
+  try { return trustStorage(doc)?.getItem(key) === '1' } catch { return false }
+}
+
+export function rememberWasmAppTrust(doc, manifest) {
+  const key = wasmTrustKey(manifest)
+  const storage = trustStorage(doc)
+  if (!key || !storage) return false
+  try {
+    storage.setItem(key, '1')
+    return storage.getItem(key) === '1'
+  } catch {
+    return false
   }
 }
 
@@ -104,10 +144,8 @@ export async function detectWasmAppManifest(files) {
   }
 }
 
-function permissionPrompt(doc, manifest) {
-  let trusted = false
-  try { trusted = localStorage.getItem(`${TRUST_PREFIX}${manifest.sha256}`) === '1' } catch {}
-  if (trusted) return Promise.resolve(true)
+export function permissionPrompt(doc, manifest) {
+  if (isWasmAppTrusted(doc, manifest)) return Promise.resolve(true)
 
   if (!doc.createElement('dialog').showModal) {
     return Promise.resolve(doc.defaultView.confirm(t('wasm.permissionTitle', { name: appDisplayName(manifest) })))
@@ -150,9 +188,7 @@ function permissionPrompt(doc, manifest) {
     doc.body.appendChild(dialog)
 
     const finish = (allowed, remember = false) => {
-      if (remember) {
-        try { localStorage.setItem(`${TRUST_PREFIX}${manifest.sha256}`, '1') } catch {}
-      }
+      if (remember) rememberWasmAppTrust(doc, manifest)
       dialog.close()
       dialog.remove()
       resolve(allowed)
@@ -187,6 +223,25 @@ export class WasmAppController {
     const key = runtimeKey(channelId, payload.instanceId, payload.appHash)
     for (const listener of this.listeners.get(key) || []) listener(payload.event)
     return true
+  }
+
+  async getLaunchState(payload, doc) {
+    const manifest = payload?.manifest
+    const trusted = validManifest(manifest) && isWasmAppTrusted(doc, manifest)
+    const infoHash = infoHashFromMagnet(payload?.magnet).toLowerCase()
+    if (!validManifest(manifest) || !infoHash || typeof this.torrentMedia?.hasCached !== 'function') {
+      return { cached: false, trusted, canOpen: false }
+    }
+    const files = Array.isArray(payload?.files) ? payload.files : []
+    const entryFile = files.find((file) => file?.name === manifest.entry || file?.path?.endsWith(`/${manifest.entry}`))
+    let cached = false
+    try {
+      cached = Boolean(await this.torrentMedia.hasCached(infoHash, {
+        entry: manifest.entry,
+        size: entryFile?.size ?? entryFile?.length
+      }))
+    } catch {}
+    return { cached, trusted, canOpen: cached && trusted }
   }
 
   async resolveFormValues(values) {
@@ -879,7 +934,9 @@ export function createWasmAppModule(controller) {
       const actions = doc.createElement('div')
       actions.className = 'wasm-app-actions'
       const run = doc.createElement('button')
+      run.type = 'button'
       run.textContent = t('wasm.run')
+      run.dataset.launchState = 'download'
       const copy = doc.createElement('button')
       copy.textContent = t('torrent.copyMagnet')
       actions.append(run, copy)
@@ -891,18 +948,29 @@ export function createWasmAppModule(controller) {
         status.textContent = t('wasm.unsupported', { abi: manifest.abi || 'unknown ABI' })
         run.disabled = true
       }
+      let launchState = { cached: false, trusted: false, canOpen: false }
+      const refreshLaunchState = async () => {
+        launchState = await controller.getLaunchState(payload, doc)
+        run.dataset.launchState = launchState.canOpen ? 'open' : 'download'
+        run.textContent = t(launchState.canOpen ? 'wasm.open' : 'wasm.run')
+        return launchState
+      }
+      if (validManifest(manifest)) refreshLaunchState().catch(() => {})
       run.addEventListener('click', async () => {
         run.disabled = true
-        status.textContent = t('wasm.downloading')
+        try { await refreshLaunchState() } catch {}
+        status.textContent = launchState.canOpen ? '' : t('wasm.downloading')
         try {
           const started = await controller.launch(payload, runtime, doc, {
             onStop: () => {
               run.disabled = false
               status.textContent = ''
+              refreshLaunchState().catch(() => {})
             }
           })
           status.textContent = started ? t('wasm.running') : ''
           if (!started) run.disabled = false
+          await refreshLaunchState()
         } catch (error) {
           status.textContent = t('wasm.invalid', { message: localizeError(error) })
           run.disabled = false
