@@ -1,6 +1,6 @@
 export const APPSTORE_CATALOG_URL = './appstore/catalog.json'
 
-const RUNTIMES = new Set(['wasm', 'standalone-web'])
+const RUNTIMES = new Set(['wasm'])
 const SAFE_FILE = /^[a-z0-9][a-z0-9._-]{0,127}$/i
 const SAFE_PATH = /^\/appstore\/[a-z0-9][a-z0-9-]{0,63}\/$/i
 
@@ -31,25 +31,16 @@ export function normalizeAppstoreEntry(input) {
     entry,
     summary: String(input?.summary || '').trim().slice(0, 320)
   }
-  if (runtime === 'wasm') {
-    const magnet = string(input?.magnet, 'magnet', 4096)
-    let magnetUrl
-    try { magnetUrl = new URL(magnet) } catch { throw new Error('invalid AppStore magnet') }
-    if (magnetUrl.protocol !== 'magnet:' || !/^urn:btih:[a-f0-9]{40}$/i.test(magnetUrl.searchParams.get('xt') || '')) {
-      throw new Error('invalid AppStore magnet')
-    }
-    normalized.magnet = magnet
-    normalized.entrySize = Number(input.entrySize || 0)
-    if (!Number.isSafeInteger(normalized.entrySize) || normalized.entrySize <= 0) {
-      throw new Error('invalid AppStore entry size')
-    }
-  } else {
-    const shareUrl = string(input?.shareUrl, 'shareUrl', 2048)
-    const parsed = new URL(shareUrl)
-    if (parsed.protocol !== 'https:' || parsed.hostname !== 'roomhash.github.io') {
-      throw new Error('invalid AppStore share URL')
-    }
-    normalized.shareUrl = parsed.href
+  const magnet = string(input?.magnet, 'magnet', 4096)
+  let magnetUrl
+  try { magnetUrl = new URL(magnet) } catch { throw new Error('invalid AppStore magnet') }
+  if (magnetUrl.protocol !== 'magnet:' || !/^urn:btih:[a-f0-9]{40}$/i.test(magnetUrl.searchParams.get('xt') || '')) {
+    throw new Error('invalid AppStore magnet')
+  }
+  normalized.magnet = magnet
+  normalized.entrySize = Number(input.entrySize || 0)
+  if (!Number.isSafeInteger(normalized.entrySize) || normalized.entrySize <= 0) {
+    throw new Error('invalid AppStore entry size')
   }
   return Object.freeze(normalized)
 }

@@ -15,8 +15,7 @@ describe('AppStore chat catalog', () => {
     const input = JSON.parse(await readFile(catalogUrl, 'utf8'))
     const apps = normalizeAppstoreCatalog(input)
     assert.equal(apps.length, 4)
-    assert.equal(apps.filter((app) => app.runtime === 'wasm').length, 2)
-    assert.equal(apps.filter((app) => app.runtime === 'standalone-web').length, 2)
+    assert.equal(apps.every((app) => app.runtime === 'wasm'), true)
     assert.equal(apps.every((app) => app.summary.length > 0), true)
   })
 
@@ -41,7 +40,7 @@ describe('AppStore chat catalog', () => {
     )
   })
 
-  it('rejects unsafe paths, malformed magnets and off-site web apps', () => {
+  it('rejects unsafe paths, malformed magnets and standalone web apps', () => {
     const base = {
       id: 'org.roomhash.bad',
       name: 'Bad',
@@ -59,6 +58,6 @@ describe('AppStore chat catalog', () => {
       runtime: 'standalone-web',
       path: '/appstore/bad/',
       shareUrl: 'https://example.com/app/'
-    }), /share URL/)
+    }), /runtime/)
   })
 })

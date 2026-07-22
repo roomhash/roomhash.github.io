@@ -43,6 +43,55 @@ rh_cell_flower(index) -> i32
 rh_cell_clock(index) -> i32
 ```
 
+Canvas applications may additionally export `rh_grid_width()` and
+`rh_grid_height()` when their logical grid is not 32×32. Whiteboard-style apps
+can export `rh_begin_stroke(actor)` and `rh_end_stroke(actor)`; RoomHash then
+delivers coalesced pointer movement rather than only a single press. Tool value
+`0` is reserved for erasing and `255` for a shared clear operation when the
+manifest declares `"ui": { "mode": "whiteboard" }`.
+
+For order-independent continuous lines, a whiteboard should also export
+`rh_apply_stroke(from_x, from_y, x, y, tool, actor, clock)`. Replicated events
+carry both segment endpoints, so applying the same segments in a different
+arrival order still converges.
+
+## `roomhash-form-v1`
+
+Structured applications use ABI version 2. Business state and event handling
+remain inside WASM; RoomHash only renders a bounded JSON view schema and carries
+actions, media descriptors, snapshots, and Mesh events.
+
+The module has no imports and exports:
+
+```text
+memory
+rh_abi_version() -> i32                 // must return 2
+rh_alloc(length) -> i32
+rh_dealloc(pointer, length)
+rh_init(pointer, length)
+rh_dispatch(pointer, length)
+rh_output_ptr() -> i32
+rh_output_len() -> i32
+```
+
+Inputs and outputs are UTF-8 JSON capped at 2 MB. `rh_init` receives the local
+nickname, peer ID, a persistent 32-byte entropy seed, channel/instance IDs, and
+optional locally persisted app state. `rh_dispatch` receives one of:
+
+```json
+{ "kind": "action", "action": "...", "values": {}, "random": "64 hex chars" }
+{ "kind": "remote", "event": {} }
+{ "kind": "state-request" }
+{ "kind": "snapshot", "state": {} }
+```
+
+The output may contain `view`, public `events`, a public `snapshot`, and private
+local `persist` state. Views are rendered only from whitelisted notice, stats,
+form, table, and card components; WASM cannot inject HTML or execute script.
+File inputs are seeded by the host and delivered back to WASM as content-
+addressed media descriptors. The WASM remains responsible for validating those
+descriptors and deciding what becomes public.
+
 Execution is opt-in, isolated in a Web Worker, limited to 10 MB of code and 64
 MB of linear memory, and terminated when the worker stops responding. P2P
 events are namespaced by channel, app fingerprint, and app instance.

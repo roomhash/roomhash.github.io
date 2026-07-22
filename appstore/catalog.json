@@ -24,30 +24,38 @@
       "manifest": "roomhash.json",
       "entry": "whiteboard.wasm",
       "torrent": "whiteboard.torrent",
-      "infoHash": "51a6c729aa50f712a441f01fdbb15a081351e67f",
+      "infoHash": "00cca8f396835ebdbec3706ee9fd359c46dddc05",
       "webSeed": "https://roomhash.github.io/appstore/whiteboard/whiteboard.wasm",
-      "entrySize": 1172,
-      "magnet": "magnet:?xt=urn:btih:51a6c729aa50f712a441f01fdbb15a081351e67f&dn=whiteboard.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.torrent"
+      "entrySize": 5966,
+      "magnet": "magnet:?xt=urn:btih:00cca8f396835ebdbec3706ee9fd359c46dddc05&dn=whiteboard.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.torrent"
     },
     {
-      "id": "roomhash-distributed-voting",
+      "id": "roomhash-voting",
       "name": "分布式公开投票",
       "summary": "由各节点收集、转发并公开汇总结果的 Mesh 投票。",
-      "runtime": "standalone-web",
+      "runtime": "wasm",
       "path": "/appstore/voting/",
-      "manifest": "manifest.json",
-      "entry": "index.html",
-      "shareUrl": "https://roomhash.github.io/appstore/voting/"
+      "manifest": "roomhash.json",
+      "entry": "voting.wasm",
+      "torrent": "voting.torrent",
+      "infoHash": "db95b7e81462a023f4c8e9428c7dbfadb8baa6fb",
+      "webSeed": "https://roomhash.github.io/appstore/voting/voting.wasm",
+      "entrySize": 235240,
+      "magnet": "magnet:?xt=urn:btih:db95b7e81462a023f4c8e9428c7dbfadb8baa6fb&dn=voting.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fvoting%2Fvoting.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fvoting%2Fvoting.torrent"
     },
     {
-      "id": "roomhash-distributed-market",
+      "id": "org.roomhash.market",
       "name": "分布式 Market",
       "summary": "公开商品信息，以端到端加密购买意向为买卖双方搭线。",
-      "runtime": "standalone-web",
+      "runtime": "wasm",
       "path": "/appstore/market/",
-      "manifest": "manifest.json",
-      "entry": "index.html",
-      "shareUrl": "https://roomhash.github.io/appstore/market/"
+      "manifest": "roomhash.json",
+      "entry": "market.wasm",
+      "torrent": "market.torrent",
+      "infoHash": "70d752182642669ed7a11f95d5a38fa1c7633285",
+      "webSeed": "https://roomhash.github.io/appstore/market/market.wasm",
+      "entrySize": 388656,
+      "magnet": "magnet:?xt=urn:btih:70d752182642669ed7a11f95d5a38fa1c7633285&dn=market.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fmarket%2Fmarket.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fmarket%2Fmarket.torrent"
     }
   ]
 }

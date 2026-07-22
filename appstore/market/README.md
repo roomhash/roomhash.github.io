@@ -1,52 +1,59 @@
-# RoomHash Distributed Market
+# RoomHash Market WASM
 
-一个独立、无中心数据库的公开商品目录与买卖搭线 demo。商品发布、更新和撤下通过签名事件在 Mesh 中多跳传播；购买意向中的联系方式、收货方式和备注只以卖家公钥加密的密文传播。
+可直接嵌入 RoomHash 消息运行的分布式 Market，使用 `roomhash-form-v1` / ABI v2。商品状态、所有权验证、排重、LWW、快照合并、购买意向加密和卖家解密全部在无 imports 的 Rust WASM 内完成。
 
-## 运行
+## 构建与验证
 
-需要 Node.js 20+，无第三方依赖：
+需要 Node.js 20+、Rust 和 `wasm32-unknown-unknown` target：
 
 ```sh
 npm run check
-npm run serve
 ```
 
-打开 `http://127.0.0.1:4175`，再开一个标签页。每个标签页使用独立的临时身份，`BroadcastChannel` 模拟 Mesh。发布商品或购买意向后，可点击“广播同步清单”触发 anti-entropy。
+该命令执行 Rust 格式/Clippy、原生单元测试、release WASM 构建，以及四个独立 WASM 实例的 ABI/传播/密码学验收。发布包位于 `dist/`：
 
-`npm run build` 会从源码重建 `dist/`，同时生成 `dist/integrity.json` 的 SHA-256 清单。`dist/` 可直接复制到静态站点的 `appstore/market/`。
+- `roomhash.json`：`roomhash.app/v1` manifest；
+- `market.wasm`：ABI v2 入口；
+- README、协议和许可证。
 
-## 产品边界
+可将整个 `dist/` 复制到 RoomHash AppStore，再由宿主生成 torrent 和 HTTP seed。
 
-- 商品列表、价格、介绍、媒体元数据、卖家昵称、卖家 hash、公开联系身份和公钥全部公开。
-- “确认购买”只是发送购买意向。卖家解密后应主动联系买家，双方在线下商讨交付。
-- 不包含线上付款、钱包、托管、支付/退款状态或任何资金处理流程。
-- 每个节点展示自己的本地收集视图。网络分区、离线、TTL、节点退出或尚未完成补齐时，不同人看到的目录可能不同；它不是强一致的中央商城。
-- demo 身份私钥和状态只存于当前标签页的 `sessionStorage`。关闭标签页会丢失卖家解密能力；生产宿主必须提供安全、可备份的密钥存储。
+## 用户流程
 
-## RoomHash 集成边界
+- 卖家发布、更新或撤下商品。标题、价格/币种、介绍、照片/视频内容寻址描述符、卖家 nick/hash/联系身份和公钥都是公开数据。
+- 买家在商品卡片确认购买，填写联系方式、收货/交付方式和备注。
+- WASM 内使用卖家 X25519 公钥加密敏感字段，再把密文作为公开 Mesh 事件传播。
+- 卖家 WASM 使用由本机 `identitySeed` 派生的私钥解密，并醒目提示卖家主动联系买家商讨线下交付。
+- 本应用没有线上付款、钱包、托管、支付状态或资金流程。
 
-当前 RoomHash WASM ABI 适合较简单的交互，不适合 Market 的表单、媒体选择、密钥生命周期和加密收件箱，因此 manifest 明确声明：
+不同节点只展示自己已经收集并验证的数据。断网、分区、节点离线或快照尚未送达时，不同人看到的商品和意向数量可能不同。
 
-```json
-{ "runtime": "standalone-web", "currentRoomHashWasmCompatible": false }
+## ABI
+
+模块无 imports，导出：
+
+```text
+memory
+rh_abi_version() -> 2
+rh_alloc / rh_dealloc
+rh_init
+rh_dispatch
+rh_output_ptr / rh_output_len
 ```
 
-`src/host-adapter.js` 定义了最小 transport contract。RoomHash 宿主把 `send/subscribe/onPeerConnected` 映射到 torrent.media 数据通道即可；协议核心负责多跳、`frameId`/事件 ID 去重和 anti-entropy。不要改写转发 frame。
+输入输出均为 UTF-8 JSON。`rh_init` 接受宿主 context；`rh_dispatch` 接受 `action`、`remote`、`state-request` 和 `snapshot`。输出包含 `view`、`events`、`snapshot`、`persist`。view 使用宿主已支持的 notice、stats、form、cards 和 table。
 
-媒体字节不放进 Gossip JSON。宿主应把 `File` 交给 torrent.media 发布，返回 `{name,mime,size,sha256,magnet,webSeed}`；协议只传播该内容寻址描述符。本地 `Object URL` 仅供预览，绝不能写入 frame。
+file 字段由宿主通过 torrent.media 变成 `{name,mime,size,sha256,magnet,webSeed}` 数组后再传入 WASM；媒体字节不会进入 Gossip JSON。
 
-## 密码学和隐私
+## 密码学与信任边界
 
-购买意向使用浏览器 Web Crypto：临时 ECDH P-256 协商、HKDF-SHA-256 派生、AES-256-GCM 加密，并把公开路由元数据作为 AEAD additional data。每个事件使用 ECDSA P-256 签名；`userHash` 是规范化签名公钥的 SHA-256。没有自定义密码算法。
+- `identitySeed` 使用域分离 SHA-256 确定性派生 Ed25519 签名密钥和 X25519 加密密钥；`userHash` 绑定 Ed25519 公钥。
+- 商品事件由卖家 Ed25519 签名，listing ID 以 seller hash 为所有者前缀。
+- 每次购买 action 必须由宿主提供 32 字节随机值。WASM 内生成一次性 X25519 密钥，以 X25519 + HKDF-SHA-256 派生密钥并用 ChaCha20-Poly1305 加密，再由买家 Ed25519 签名公开 envelope。
+- 公共事件和快照只包含密文；联系方式、收货方式和备注不进入公开 JSON。
+- 观察者仍能看到双方 hash、商品 ID、意向 ID、密文大小和传播关系。加密不隐藏这些元数据。
+- 公钥 hash 只能证明同一密钥，不能证明现实身份；昵称和公开联系身份仍可能被冒充。
+- identitySeed 丢失后，卖家无法解密相应意向；泄漏后攻击者可以冒充身份并解密发给该密钥的密文。宿主负责安全存储和备份。
+- Mesh 节点可以拒绝转发、审查或丢包。快照与排重改善最终收敛，但不保证全网送达，也不提供内容审核、履约或争议仲裁。
 
-但加密不隐藏所有元数据：观察者仍能看到 listing ID、intent ID、买家/卖家 hash、时间、密文大小和传播关系。昵称/地址等明文只在卖家解密后出现。卖家可以自行泄露解密结果，恶意客户端也可截屏。
-
-信任边界：
-
-- 公钥 hash 只能证明“同一密钥”，不能证明现实身份。公开昵称和联系身份可能被冒充；需要线下或其他可信渠道核验。
-- 卖家私钥丢失后无法解密历史或新意向；私钥泄露则历史密文可能被解密。本协议不提供密钥恢复或前向保密保证。
-- Mesh 节点可能丢包、拒绝转发、审查或重放。去重与 anti-entropy 改善收敛，不保证全网送达。
-- 内容 hash 可验证下载字节，但不会证明照片、视频或商品描述真实，也不提供内容审核。
-- 买家应只提供完成联络所需的最少信息；公开终端、共享浏览器和恶意扩展可能读取解密后的内容。
-
-详见 [PROTOCOL.md](./PROTOCOL.md)。
+详见 `PROTOCOL.md`。

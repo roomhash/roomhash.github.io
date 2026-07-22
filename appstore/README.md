@@ -10,5 +10,5 @@ its independent workspace project:
 
 `catalog.json` is the machine-readable index. WASM entries include a torrent
 whose HTTP Seed points back to the canonical `/appstore/<app>/` asset path.
-Standalone web entries publish a complete static bundle in their app folder.
-
+Every AppStore entry is an embedded RoomHash WASM application; standalone web
+bundles are intentionally rejected by the catalog loader.
