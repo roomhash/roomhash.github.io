@@ -10,3 +10,6 @@ cp target/wasm32-unknown-unknown/release/roomhash_hello_wasm.wasm hello_world.wa
 ```
 
 Open the repository through an HTTP server and visit `/demo/wasm/`.
+
+Published RoomHash application artifacts now live under `/appstore/`; this
+directory only contains the standalone ABI example.

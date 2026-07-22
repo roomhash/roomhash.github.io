@@ -18,6 +18,7 @@ import { createMeshSession } from './network/mesh-session.js'
 import { RelayLimiter } from './network/gossip.js'
 import { RuntimeCapabilities } from './network/runtime-capabilities.js'
 import { DEMO_PIXEL_GARDEN, DEMO_VIDEO } from './demo-content.js'
+import { appstoreArtifactUrl } from './appstore.js'
 import {
   appendMessage,
   loadAutoAddChannels,
@@ -556,6 +557,28 @@ async function boot() {
         ...DEMO_PIXEL_GARDEN,
         instanceId: `pixel-garden:${activeChannel}`
       })
+    },
+    async onShareApp(app) {
+      const session = activeSession()
+      if (!session) throw new Error('channel is still connecting')
+      if (app.runtime === 'standalone-web') {
+        await session.sendText(app.shareUrl)
+      } else {
+        const response = await fetch(appstoreArtifactUrl(app, app.manifest), { cache: 'no-cache' })
+        if (!response.ok) throw new Error(`app manifest request failed (${response.status})`)
+        const manifest = await response.json()
+        if (manifest.id !== app.id || manifest.entry !== app.entry || manifest.runtime !== 'wasm') {
+          throw new Error('AppStore manifest does not match its catalog entry')
+        }
+        await session.sendModule(WASM_APP_MODULE, {
+          magnet: app.magnet,
+          title: `${app.name} - RoomHash WASM app`,
+          manifest,
+          files: [{ name: app.entry, size: app.entrySize, mime: 'application/wasm' }],
+          instanceId: `${manifest.id}:${activeChannel}`
+        })
+      }
+      ui?.setStatus({ key: 'appstore.sent' })
     },
     async onSeedFiles(files) {
       const session = activeSession()

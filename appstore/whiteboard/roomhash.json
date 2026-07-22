@@ -1,0 +1,14 @@
+{
+  "schema": "roomhash.app/v1",
+  "id": "org.roomhash.whiteboard",
+  "name": "Shared Whiteboard",
+  "version": "1.0.0",
+  "runtime": "wasm",
+  "abi": "roomhash-pixel-grid-v1",
+  "entry": "whiteboard.wasm",
+  "sha256": "60339503675adae13d848396e3060822a84c1116a9615c371ba829d9d2da170f",
+  "permissions": [
+    "channel.messages",
+    "storage:256kb"
+  ]
+}

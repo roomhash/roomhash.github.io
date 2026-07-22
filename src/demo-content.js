@@ -16,8 +16,8 @@ export const DEMO_VIDEO = Object.freeze({
 })
 
 export const DEMO_PIXEL_GARDEN = Object.freeze({
-  "magnet": "magnet:?xt=urn:btih:203d5be59b06376f0b1ef18e2360fc0e33a07cd4&dn=pixel_garden.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fdemo%2Fwasm%2Fpixel-garden%2Fpixel_garden.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fdemo%2Fwasm%2Fpixel-garden%2Fpixel_garden.torrent",
-  "torrentUrl": "https://roomhash.github.io/demo/wasm/pixel-garden/pixel_garden.torrent",
+  "magnet": "magnet:?xt=urn:btih:203d5be59b06376f0b1ef18e2360fc0e33a07cd4&dn=pixel_garden.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fpixel-garden%2Fpixel_garden.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fpixel-garden%2Fpixel_garden.torrent",
+  "torrentUrl": "https://roomhash.github.io/appstore/pixel-garden/pixel_garden.torrent",
   "title": "Pixel Garden - RoomHash WASM game",
   "manifest": {
     "schema": "roomhash.app/v1",

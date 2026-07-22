@@ -1,27 +1,25 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { copyFileSync, mkdirSync } from 'node:fs'
+import { copyFileSync, cpSync, mkdirSync } from 'node:fs'
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const demoAssets = [
   'demo/video/file_example_MP4_640_3MG.mp4',
   'demo/video/file_example_MP4_640_3MG.torrent',
-  'demo/wasm/hello_world.wasm',
-  'demo/wasm/pixel-garden/pixel_garden.wasm',
-  'demo/wasm/pixel-garden/pixel_garden.torrent',
-  'demo/wasm/pixel-garden/roomhash.json'
+  'demo/wasm/hello_world.wasm'
 ]
 
-function copyDemoAssets() {
+function copyPublishedAssets() {
   return {
-    name: 'roomhash-demo-assets',
+    name: 'roomhash-published-assets',
     closeBundle() {
       for (const asset of demoAssets) {
         const destination = resolve(root, 'dist', asset)
         mkdirSync(resolve(destination, '..'), { recursive: true })
         copyFileSync(resolve(root, asset), destination)
       }
+      cpSync(resolve(root, 'appstore'), resolve(root, 'dist', 'appstore'), { recursive: true })
     }
   }
 }
@@ -29,7 +27,7 @@ function copyDemoAssets() {
 // RoomHash is deployed as the root user/organization Pages site.
 export default defineConfig({
   base: '/',
-  plugins: [copyDemoAssets()],
+  plugins: [copyPublishedAssets()],
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
