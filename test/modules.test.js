@@ -2,6 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { MessageModuleRegistry } from '../src/modules/registry.js'
 import { classifyTorrentFile, isMagnetUri } from '../src/modules/torrent-media.js'
+import { SUPPORTED_WASM_ABIS } from '../src/modules/wasm-app.js'
 
 describe('message modules', () => {
   it('registers versioned renderers', () => {
@@ -22,5 +23,11 @@ describe('message modules', () => {
     assert.equal(classifyTorrentFile({ name: 'README.md' }), 'markdown')
     assert.equal(classifyTorrentFile({ name: 'notes.txt' }), 'text')
     assert.equal(classifyTorrentFile({ name: 'archive.zip' }), 'download')
+  })
+
+  it('supports both canvas and structured embedded WASM applications', () => {
+    assert.equal(SUPPORTED_WASM_ABIS.has('roomhash-pixel-grid-v1'), true)
+    assert.equal(SUPPORTED_WASM_ABIS.has('roomhash-form-v1'), true)
+    assert.equal(SUPPORTED_WASM_ABIS.has('standalone-web'), false)
   })
 })

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import parseTorrent from 'parse-torrent'
 
 import { DEMO_PIXEL_GARDEN } from '../src/demo-content.js'
 
@@ -22,14 +23,17 @@ describe('AppStore publication', () => {
     assert.deepEqual(catalog.apps.map((app) => app.id), [
       'org.roomhash.pixel-garden',
       'org.roomhash.whiteboard',
-      'roomhash-distributed-voting',
-      'roomhash-distributed-market'
+      'roomhash-voting',
+      'org.roomhash.market'
     ])
 
     for (const app of catalog.apps) {
       const manifest = await json(`${app.path.replace('/appstore/', '')}${app.manifest}`)
       assert.equal(manifest.id, app.id)
-      await readFile(new URL(`${app.path.replace('/appstore/', '')}${app.entry}`, root))
+      assert.equal(manifest.runtime, 'wasm')
+      assert.match(manifest.abi, /^roomhash-(pixel-grid|form)-v1$/)
+      const entry = await readFile(new URL(`${app.path.replace('/appstore/', '')}${app.entry}`, root))
+      assert.equal(entry.length, app.entrySize)
     }
   })
 
@@ -41,6 +45,11 @@ describe('AppStore publication', () => {
       assert.equal(await sha256(`${relative}${app.entry}`), manifest.sha256)
       const torrent = await readFile(new URL(`${relative}${app.torrent}`, root))
       assert.equal(torrent.includes(Buffer.from(app.webSeed)), true)
+      const parsed = await parseTorrent(torrent)
+      assert.equal(parsed.infoHash, app.infoHash)
+      assert.equal(new URL(app.magnet).searchParams.get('xt'), `urn:btih:${parsed.infoHash}`)
+      assert.equal(new URL(app.magnet).searchParams.get('ws'), app.webSeed)
+      assert.equal(new URL(app.magnet).searchParams.get('xs'), `https://roomhash.github.io${app.path}${app.torrent}`)
     }
   })
 

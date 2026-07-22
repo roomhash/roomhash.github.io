@@ -1,0 +1,17 @@
+{
+  "schema": "roomhash.app/v1",
+  "id": "org.roomhash.market",
+  "name": "RoomHash Market",
+  "version": "1.0.0",
+  "runtime": "wasm",
+  "abi": "roomhash-form-v1",
+  "entry": "market.wasm",
+  "sha256": "d2c0df29f7f9622d9b63fae12d0c0cfd7d0f43d4c437c94e641026aa95ccc049",
+  "permissions": [
+    "channel.messages",
+    "storage:512kb",
+    "media.seed"
+  ],
+  "privacy": "Listings are public. Purchase contact, delivery and note fields are encrypted inside WASM for the seller key.",
+  "notice": "Local collection views may differ during partitions. This app does not implement online payment."
+}

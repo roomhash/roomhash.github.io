@@ -439,11 +439,48 @@ select { width: 100%; color-scheme: dark; }
 .wasm-game-toolbar { display: flex; align-items: center; gap: 8px; }
 .wasm-game-toolbar strong { margin-right: auto; font-size: 14px; }
 .wasm-game-palette { display: flex; flex-wrap: wrap; gap: 8px; }
+.wasm-tool-choice { min-height: 38px; padding: 0 12px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; font-size: 11px; font-weight: 750; }
+.wasm-tool-choice.active, .wasm-tool-choice:hover { color: var(--accent); border-color: var(--accent); }
 .wasm-flower-choice { width: 44px; height: 44px; padding: 0; border: 2px solid transparent; border-radius: 12px; cursor: pointer; }
 .wasm-flower-choice.active { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
-.wasm-game-canvas { display: block; width: min(100%, 640px); aspect-ratio: 1; image-rendering: pixelated; border: 1px solid var(--border); border-radius: 14px; background: #17241d; cursor: crosshair; touch-action: none; }
+.wasm-game-canvas { display: block; width: min(100%, 960px); height: auto; image-rendering: pixelated; border: 1px solid var(--border); border-radius: 14px; background: #17241d; cursor: crosshair; touch-action: none; }
 .wasm-game-shell:fullscreen, .wasm-game-shell.is-fullscreen { width: 100vw; height: 100dvh; max-width: none; padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); overflow: auto; color: var(--text); background: radial-gradient(circle at 50% 40%, #18352d, var(--bg) 68%); border: 0; border-radius: 0; grid-template-rows: auto auto minmax(0, 1fr); }
 .wasm-game-shell:fullscreen .wasm-game-canvas, .wasm-game-shell.is-fullscreen .wasm-game-canvas { width: min(100%, calc(100dvh - 150px), 960px); max-height: calc(100dvh - 150px); justify-self: center; }
+.wasm-form-shell { max-width: 880px; }
+.wasm-form-content { min-width: 0; }
+.wasm-structured-view { display: grid; gap: 14px; }
+.wasm-structured-view > h2, .wasm-structured-view h3 { margin: 0; }
+.wasm-structured-view > h2 { font-size: 20px; letter-spacing: -.03em; }
+.wasm-structured-notice { margin: 0; padding: 10px 12px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; font-size: 11px; line-height: 1.55; }
+.wasm-structured-notice.warning { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.wasm-structured-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.wasm-structured-stats > div { display: grid; gap: 3px; padding: 11px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
+.wasm-structured-stats strong { color: var(--accent); font: 800 18px/1 var(--mono); }
+.wasm-structured-stats span { color: var(--muted); font-size: 10px; }
+.wasm-structured-form { display: grid; gap: 9px; padding: 13px; background: color-mix(in srgb, var(--surface-2) 72%, transparent); border: 1px solid var(--border); border-radius: 12px; }
+.wasm-form-help { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.wasm-form-field { display: grid; gap: 5px; color: var(--muted); font-size: 10px; }
+.wasm-form-field input, .wasm-form-field select, .wasm-form-field textarea { width: 100%; min-height: 40px; padding: 8px 10px; }
+.wasm-form-field input[type='file'] { padding: 8px; }
+.wasm-form-checkbox { display: flex; align-items: center; min-height: 40px; }
+.wasm-form-checkbox input { width: auto; min-height: auto; }
+.wasm-form-submit { min-height: 42px; padding: 0 14px; color: #18120a; background: var(--accent); border: 1px solid var(--accent); border-radius: 9px; font-weight: 800; }
+.wasm-table-section, .wasm-cards-section { display: grid; gap: 9px; }
+.wasm-table-section h3, .wasm-cards-section h3, .wasm-structured-form h3 { font-size: 13px; }
+.wasm-table-scroll { overflow: auto; border: 1px solid var(--border); border-radius: 11px; }
+.wasm-table-scroll table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.wasm-table-scroll th, .wasm-table-scroll td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+.wasm-table-scroll th { color: var(--faint); background: var(--surface-2); }
+.wasm-structured-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 9px; }
+.wasm-structured-card { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
+.wasm-structured-card > strong { font-size: 13px; }
+.wasm-structured-card > small, .wasm-structured-card > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; white-space: pre-wrap; }
+.wasm-structured-card dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 8px; margin: 0; font-size: 9px; }
+.wasm-structured-card dt { color: var(--faint); }
+.wasm-structured-card dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.wasm-card-media { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.wasm-card-media img, .wasm-card-media video { width: 100%; max-height: 180px; object-fit: cover; background: #000; border-radius: 8px; }
+.wasm-media-load { min-height: 80px; padding: 8px; color: var(--info); background: var(--bg); border: 1px dashed var(--border); border-radius: 8px; font-size: 10px; overflow-wrap: anywhere; }
 .wasm-permission-dialog { width: min(520px, calc(100vw - 28px)); padding: 0; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
 .wasm-permission-dialog::backdrop { background: rgb(2 7 12 / 72%); backdrop-filter: blur(4px); }
 .wasm-permission-body { display: grid; gap: 12px; padding: 24px; }

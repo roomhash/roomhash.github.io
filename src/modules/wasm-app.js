@@ -1,8 +1,9 @@
 import { localizeError, t } from '../i18n.js'
+import { renderWasmFormView } from './wasm-form-ui.js'
 
 export const WASM_APP_MODULE = 'wasm.app'
 export const WASM_APP_EVENT_MODULE = 'wasm.app.event'
-export const SUPPORTED_WASM_ABIS = new Set(['roomhash-pixel-grid-v1'])
+export const SUPPORTED_WASM_ABIS = new Set(['roomhash-pixel-grid-v1', 'roomhash-form-v1'])
 
 const MAX_WASM_BYTES = 10 * 1024 * 1024
 const TRUST_PREFIX = 'roomhash:wasm-trust:'
@@ -51,6 +52,7 @@ function validManifest(manifest) {
   return Boolean(
     manifest &&
     manifest.schema === 'roomhash.app/v1' &&
+    manifest.runtime === 'wasm' &&
     typeof manifest.id === 'string' &&
     typeof manifest.entry === 'string' &&
     typeof manifest.sha256 === 'string' &&
@@ -146,9 +148,10 @@ function runtimeKey(channelId, instanceId, appHash) {
 }
 
 export class WasmAppController {
-  constructor({ torrentMedia, getActiveChannel, sendEvent }) {
+  constructor({ torrentMedia, getActiveChannel, getIdentity, sendEvent }) {
     this.torrentMedia = torrentMedia
     this.getActiveChannel = getActiveChannel
+    this.getIdentity = getIdentity
     this.sendEvent = sendEvent
     this.listeners = new Map()
   }
@@ -158,6 +161,166 @@ export class WasmAppController {
     const payload = message.payload || {}
     const key = runtimeKey(channelId, payload.instanceId, payload.appHash)
     for (const listener of this.listeners.get(key) || []) listener(payload.event)
+    return true
+  }
+
+  async resolveFormValues(values) {
+    const resolved = {}
+    for (const [name, value] of Object.entries(values || {})) {
+      if (!Array.isArray(value) || !value.every((item) => item && typeof item.arrayBuffer === 'function' && typeof item.name === 'string')) {
+        resolved[name] = value
+        continue
+      }
+      if (!value.length) {
+        resolved[name] = []
+        continue
+      }
+      const torrent = await this.torrentMedia.seed(value)
+      resolved[name] = await Promise.all(value.map(async (file) => ({
+        name: file.name,
+        mime: file.type || 'application/octet-stream',
+        size: file.size,
+        sha256: await sha256(await file.arrayBuffer()),
+        magnet: torrent.magnetURI,
+        webSeed: ''
+      })))
+    }
+    return resolved
+  }
+
+  async resolveFormMedia(descriptor) {
+    const torrent = await this.torrentMedia.add(String(descriptor?.magnet || ''))
+    const file = torrent.files.find((item) => item.name === descriptor?.name || item.path?.endsWith(`/${descriptor?.name}`))
+    if (!file) throw new Error('media file is unavailable')
+    return URL.createObjectURL(await file.blob())
+  }
+
+  launchForm({ payload, manifest, bytes, digest, worker, mount, doc, channelId, instanceId, key, onStop }) {
+    const shell = doc.createElement('section')
+    shell.className = 'wasm-game-shell wasm-form-shell'
+    const toolbar = doc.createElement('div')
+    toolbar.className = 'wasm-game-toolbar'
+    const name = doc.createElement('strong')
+    name.textContent = manifest.name || manifest.id
+    const stop = doc.createElement('button')
+    stop.type = 'button'
+    stop.textContent = t('wasm.stop')
+    toolbar.append(name, stop)
+    const status = doc.createElement('p')
+    status.className = 'wasm-app-status'
+    const content = doc.createElement('div')
+    content.className = 'wasm-form-content'
+    shell.append(toolbar, status, content)
+    mount.replaceChildren(shell)
+
+    const storage = doc.defaultView?.localStorage
+    const identityKey = `roomhash:wasm-identity:${manifest.id}`
+    let identitySeed = ''
+    try { identitySeed = storage?.getItem(identityKey) || '' } catch {}
+    if (!/^[a-f0-9]{64}$/i.test(identitySeed)) {
+      identitySeed = hex(crypto.getRandomValues(new Uint8Array(32)))
+      try { storage?.setItem(identityKey, identitySeed) } catch {}
+    }
+    const stateKey = `roomhash:wasm-state:${key}`
+    let savedState = null
+    try { savedState = JSON.parse(storage?.getItem(stateKey) || 'null') } catch {}
+    const identity = this.getIdentity?.() || {}
+    const context = {
+      nickname: String(identity.nickname || ''),
+      peerId: String(identity.peerId || ''),
+      identitySeed,
+      channelId,
+      instanceId,
+      savedState
+    }
+
+    const listeners = this.listeners.get(key) || new Set()
+    const receive = (event) => {
+      if (!event || typeof event !== 'object') return
+      if (event.kind === 'form-event') worker.postMessage({ type: 'form-remote', event: event.data })
+      if (event.kind === 'state-request') worker.postMessage({ type: 'snapshot-request' })
+      if (event.kind === 'form-snapshot' && event.state) worker.postMessage({ type: 'form-snapshot', state: event.state })
+    }
+    listeners.add(receive)
+    this.listeners.set(key, listeners)
+
+    let lastPong = Date.now()
+    let stopped = false
+    let timer = 0
+    const objectUrls = new Set()
+    const notifyStopped = () => {
+      if (stopped) return
+      stopped = true
+      onStop?.()
+    }
+    const send = (event) => this.sendEvent(channelId, { instanceId, appHash: digest, event }).catch(() => {})
+    const act = async (action, values) => {
+      status.textContent = ''
+      const resolved = await this.resolveFormValues(values)
+      worker.postMessage({
+        type: 'form-action',
+        action,
+        values: resolved,
+        random: hex(crypto.getRandomValues(new Uint8Array(32)))
+      })
+    }
+    worker.addEventListener('message', ({ data }) => {
+      if (data.type === 'ready') {
+        send({ kind: 'state-request' })
+      } else if (data.type === 'view') {
+        renderWasmFormView(doc, content, data.view, act, async (descriptor) => {
+          const objectUrl = await this.resolveFormMedia(descriptor)
+          objectUrls.add(objectUrl)
+          return objectUrl
+        })
+      } else if (data.type === 'event') {
+        send({ kind: 'form-event', data: data.event })
+      } else if (data.type === 'form-snapshot') {
+        send({ kind: 'form-snapshot', state: data.state })
+      } else if (data.type === 'persist') {
+        try { storage?.setItem(stateKey, JSON.stringify(data.state)) } catch {}
+      } else if (data.type === 'form-error') {
+        status.textContent = localizeError(data.message)
+      } else if (data.type === 'pong') {
+        lastPong = Date.now()
+      } else if (data.type === 'error') {
+        content.textContent = t('wasm.invalid', { message: data.message })
+        worker.terminate()
+        clearInterval(timer)
+        listeners.delete(receive)
+        for (const objectUrl of objectUrls) URL.revokeObjectURL(objectUrl)
+        notifyStopped()
+      }
+    })
+    worker.addEventListener('error', (error) => {
+      content.textContent = t('wasm.invalid', { message: localizeError(error) })
+      worker.terminate()
+      clearInterval(timer)
+      listeners.delete(receive)
+      for (const objectUrl of objectUrls) URL.revokeObjectURL(objectUrl)
+      notifyStopped()
+    })
+    timer = setInterval(() => {
+      if (Date.now() - lastPong > 5000) {
+        worker.terminate()
+        clearInterval(timer)
+        listeners.delete(receive)
+        for (const objectUrl of objectUrls) URL.revokeObjectURL(objectUrl)
+        content.textContent = t('wasm.invalid', { message: 'execution timeout' })
+        notifyStopped()
+        return
+      }
+      worker.postMessage({ type: 'ping' })
+    }, 1500)
+    stop.addEventListener('click', () => {
+      clearInterval(timer)
+      worker.terminate()
+      listeners.delete(receive)
+      for (const objectUrl of objectUrls) URL.revokeObjectURL(objectUrl)
+      mount.replaceChildren()
+      notifyStopped()
+    })
+    worker.postMessage({ type: 'load', bytes, context }, [bytes])
     return true
   }
 
@@ -177,6 +340,9 @@ export class WasmAppController {
     const instanceId = String(payload.instanceId || manifest.id)
     const key = runtimeKey(channelId, instanceId, digest)
     const worker = new Worker(new URL('../workers/wasm-runtime.worker.js', import.meta.url), { type: 'module' })
+    if (manifest.abi === 'roomhash-form-v1') {
+      return this.launchForm({ payload, manifest, bytes, digest, worker, mount, doc, channelId, instanceId, key, onStop })
+    }
     const shell = doc.createElement('section')
     shell.className = 'wasm-game-shell'
     const toolbar = doc.createElement('div')
@@ -194,6 +360,7 @@ export class WasmAppController {
     const palette = doc.createElement('div')
     palette.className = 'wasm-game-palette'
     const colors = ['#f5b84b', '#51d7b7', '#ff7b72', '#74b9ff']
+    const isWhiteboard = manifest.ui?.mode === 'whiteboard'
     let flower = 1
     colors.forEach((color, index) => {
       const button = doc.createElement('button')
@@ -206,6 +373,25 @@ export class WasmAppController {
       })
       palette.appendChild(button)
     })
+    if (isWhiteboard) {
+      const eraser = doc.createElement('button')
+      eraser.className = 'wasm-tool-choice'
+      eraser.type = 'button'
+      eraser.textContent = t('wasm.eraser')
+      eraser.addEventListener('click', () => {
+        flower = 0
+        for (const choice of palette.children) choice.classList.toggle('active', choice === eraser)
+      })
+      const clear = doc.createElement('button')
+      clear.className = 'wasm-tool-choice danger-action'
+      clear.type = 'button'
+      clear.textContent = t('wasm.clearBoard')
+      clear.addEventListener('click', () => {
+        if (!doc.defaultView.confirm(t('wasm.confirmClear'))) return
+        worker.postMessage({ type: 'input', x: 0, y: 0, flower: 255, actor, phase: 'start' })
+      })
+      palette.append(eraser, clear)
+    }
     const canvas = doc.createElement('canvas')
     canvas.className = 'wasm-game-canvas'
     shell.append(toolbar, palette, canvas)
@@ -272,23 +458,55 @@ export class WasmAppController {
         lastPong = Date.now()
       } else if (data.type === 'error') {
         mount.textContent = t('wasm.invalid', { message: data.message })
+        worker.terminate()
+        clearInterval(timer)
+        listeners.delete(receive)
+        doc.removeEventListener('fullscreenchange', onFullscreenChange)
+        doc.removeEventListener('webkitfullscreenchange', onFullscreenChange)
         notifyStopped()
       }
     })
     worker.addEventListener('error', (error) => {
       mount.textContent = t('wasm.invalid', { message: localizeError(error) })
+      worker.terminate()
+      clearInterval(timer)
+      listeners.delete(receive)
+      doc.removeEventListener('fullscreenchange', onFullscreenChange)
+      doc.removeEventListener('webkitfullscreenchange', onFullscreenChange)
       notifyStopped()
     })
-    canvas.addEventListener('pointerdown', (event) => {
+    const postPointer = (event, phase) => {
       const rect = canvas.getBoundingClientRect()
       worker.postMessage({
         type: 'input',
         x: Math.floor((event.clientX - rect.left) * canvas.width / rect.width),
         y: Math.floor((event.clientY - rect.top) * canvas.height / rect.height),
         flower,
-        actor
+        actor,
+        phase
       })
-    })
+    }
+    if (isWhiteboard) {
+      let activePointer = null
+      canvas.addEventListener('pointerdown', (event) => {
+        activePointer = event.pointerId
+        canvas.setPointerCapture?.(event.pointerId)
+        postPointer(event, 'start')
+      })
+      canvas.addEventListener('pointermove', (event) => {
+        if (activePointer !== event.pointerId) return
+        for (const point of event.getCoalescedEvents?.() || [event]) postPointer(point, 'move')
+      })
+      const endStroke = (event) => {
+        if (activePointer !== event.pointerId) return
+        activePointer = null
+        worker.postMessage({ type: 'end-stroke', actor })
+      }
+      canvas.addEventListener('pointerup', endStroke)
+      canvas.addEventListener('pointercancel', endStroke)
+    } else {
+      canvas.addEventListener('pointerdown', (event) => postPointer(event, 'start'))
+    }
 
     const timer = setInterval(() => {
       if (Date.now() - lastPong > 5000) {

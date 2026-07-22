@@ -1,0 +1,16 @@
+{
+  "schema": "roomhash.app/v1",
+  "id": "roomhash-voting",
+  "name": "分布式公开投票",
+  "version": "0.2.0",
+  "runtime": "wasm",
+  "abi": "roomhash-form-v1",
+  "entry": "voting.wasm",
+  "sha256": "69d2f066286cc47ba0ffb3e6cd3418009ca98f8150bcfe252450034b58050f28",
+  "permissions": [
+    "room identity context",
+    "public room events",
+    "local state persistence"
+  ],
+  "notice": "不同节点看到的统计结果可能不同，取决于各自实际收集到的数据；结果不是全局强一致视图。"
+}

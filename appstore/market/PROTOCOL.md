@@ -1,60 +1,54 @@
 # RoomHash Market Protocol v1
 
-## 状态模型
+## 身份与所有权
 
-协议有两类签名事件：
+WASM 从宿主提供的 64 hex `identitySeed` 派生两套独立密钥：Ed25519 用于事件签名，X25519 用于购买意向加密。`userHash = SHA-256(domain || Ed25519PublicKey)`。
 
-1. `roomhash.market/listing-v1`：公开商品事件。`listingId` 必须为 `<sellerHash>:<slug>`，从而把 seller hash 固定为所有者键。事件含卖家签名/加密公钥、公开身份、标题、价格、介绍、媒体描述符、`active|withdrawn`、revision 和时间。
-2. `roomhash.market/purchase-intent-v1`：公开路由元数据与加密 envelope。`orderIntentId` 必须为 `<buyerHash>:<128-bit random>`。联系方式、收货/交付方式、买家昵称和备注位于 AES-GCM 密文内。
+listing ID 格式为 `<sellerHash>:<128-bit action random prefix>`。更新和撤下必须继续携带同一个卖家公钥，并通过该公钥验证 Ed25519 签名。非所有者不能构造有效更新。
 
-当前状态按逻辑键取确定性 LWW：先比较整数 `revision`，相同时取字典序较大的 `eventId`。`eventId` 是规范化无签名事件的 SHA-256。所有 listing 更新必须能由 listing 内卖家公钥验证；该公钥 SHA-256 必须等于 `sellerHash`。意向同理验证买家签名。
+## 事件和 LWW
 
-撤下是 `status: withdrawn` 的新 revision，不删除旧知识。协议拒绝资金处理相关字段。
+公开事件 schema 为 `roomhash.market/event-v1`，包含：
 
-## 帧与多跳
+- `listing`：公开商品、卖家信息、媒体描述符、status、revision、eventId 和签名；
+- `intent`：公开路由/身份元数据、一次性公钥、nonce、密文、revision、eventId 和买家签名。
 
-`roomhash.market/frame-v1` 包含：
+`eventId` 是规范化 Rust struct JSON 的 SHA-256。WASM 先验证 schema、字段限制、所有权、公钥 hash、eventId 和签名，再写入状态。相同 eventId 防 echo；相同逻辑键按 `(revision,eventId)` 取最大值，确保乱序确定性收敛。
 
-```text
-roomId, frameId, originId, destinationId?, hops, maxHops, type, payload
-```
+状态快照 `roomhash.market/snapshot-v1` 只包含每个 listing 和 intent 的当前公开 winner。snapshot 合并逐条执行与 remote 事件相同的完整验证，绝不信任宿主或中继。
 
-节点按 `frameId` 去重防止环路 echo，最多转发 16 跳，并在转发时排除来源 peer（transport 支持时）。公开事件以 `event` 帧洪泛。购买意向也是公开传播的事件，但敏感字段只存在于密文。
+## 购买意向加密
 
-anti-entropy 使用：
+买家 action 包含由宿主安全随机源生成的 32 字节 `random`。WASM 将它与买家密钥和 listing ID 混合，域分离派生一次性 X25519 私钥与 96-bit nonce：
 
-- `inventory`：每个当前 listing/order intent 的 kind、逻辑 key、eventId 和 revision；
-- `want`：接收端缺少/不同的 eventId；
-- `events`：按 eventId 返回完整签名事件；接收端验证后，以新 frameId 重广播新学到的 winner。
+1. 一次性 X25519 私钥与 listing 中卖家 X25519 公钥计算 shared secret；
+2. HKDF-SHA-256 以 listing ID 域分离 salt 和公开意向元数据作为 info，派生 256-bit key；
+3. ChaCha20-Poly1305 加密 `{buyerNick,buyerHash,contact,delivery,note}`，公开元数据同时作为 AEAD AAD；
+4. 买家 Ed25519 签名完整公开 envelope。
 
-寻址修复帧可以跨中继，到达 destination 后停止。节点永远不应把未通过 schema、hash 和签名校验的事件继续转发。协议是最终一致的 best-effort 系统，不是全局完整视图。
-
-## 购买意向 envelope
-
-卖家 listing 携带独立的 ECDH P-256 公钥。买家为每条意向生成临时 ECDH P-256 密钥：
-
-1. 临时私钥与卖家公钥执行 ECDH 得到 256-bit shared secret；
-2. 随机 128-bit salt，HKDF-SHA-256 派生 AES-256-GCM key；
-3. 随机 96-bit IV；
-4. 将 schema、intent/listing ID、双方 hash、revision、时间的规范化 JSON 作为 HKDF info 和 AES-GCM additional data；
-5. 加密 `{buyerNick, contact, delivery, note, createdAt}`；
-6. 公布临时公钥、salt、IV、ciphertext，并由买家 ECDSA P-256 签名整个意向。
-
-只有持有 listing 对应 ECDH 私钥的卖家能解密。任何中继都可验证买家签名并转发密文。密钥轮换必须发布新 listing revision；旧私钥仍是解密旧意向所必需的。
+卖家用由自己的 identitySeed 派生的 X25519 私钥解密。其他实例即使收集到全部公开事件也没有解密密钥。公开 Mesh JSON 和 snapshot 不含敏感明文。
 
 ## 媒体
 
-Gossip 只含 `{kind,name,mime,size,sha256,magnet,webSeed}`。每个描述符必须有 SHA-256，并至少提供 magnet 或 HTTPS web seed（仅开发时允许 localhost HTTP）。
+file 字段由宿主 seed 后变为 `{name,mime,size,sha256,magnet,webSeed}`。WASM 根据 MIME 派生公开卡片所需的 `photo|video` kind，并强制：
 
-- 照片：JPEG/PNG/WebP/GIF，最多 8 个、每个 10 MiB；
-- 视频：MP4/WebM，最多 2 个、每个 100 MiB；
-- 总计最多 210 MiB。
+- JPEG/PNG/WebP/GIF 照片最多 8 个，每个 10 MiB；
+- MP4/WebM 视频最多 2 个，每个 100 MiB；
+- 合计最多 210 MiB；
+- SHA-256 必须为 32-byte hex；至少存在 magnet 或 webSeed；webSeed 必须 HTTPS，开发期仅允许 localhost HTTP。
 
-接收方下载后必须重新计算 SHA-256。`blob:` Object URL 只在创建它的页面有效，不能传播。宿主应通过 RoomHash torrent.media seed 附件，再生成描述符。
+媒体字节不进入事件。接收宿主从 torrent 或 web seed 获取后应再次核验 SHA-256。
 
-## 已知限制
+## ABI v2 调度
 
-- 无全局时钟、全局总数、中心可用性或送达保证；revision 由事件所有者维护。
-- `seenFrames` 和事件库存当前为内存集合；长期运行宿主应设置有界保留与持久化策略，同时避免过早丢弃造成重复洪泛。
-- demo 的 BroadcastChannel 只能模拟同源多标签，不代表真实 NAT 穿透；真实多 NAT 依赖 RoomHash WebRTC/torrent.media transport 与 Headless 可达性。
-- 不做付款、托管、钱包、库存锁定、履约确认、争议仲裁、身份认证或内容审核。
+- init：`{nickname,peerId,identitySeed,channelId,instanceId,savedState}`；
+- action：`publish|update|withdraw|buy`，附 `values` 与 64 hex random；
+- remote：单个公开 MarketEvent；
+- state-request：返回公开 snapshot；
+- snapshot：验证并合并公开 snapshot。
+
+输出统一为 `{view,events,snapshot,persist}`。persist 与 snapshot 都只保存公开密文状态；卖家每次渲染收件箱时在 WASM 内重新解密。
+
+## 明确排除
+
+协议递归拒绝 payment、wallet、escrow、paid、refund、transactionId 等资金流程字段。不定义线上付款、资金托管、支付状态、库存锁定、履约确认或争议仲裁。
