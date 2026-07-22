@@ -286,8 +286,20 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     els.messageInput.value = ''
   }
   els.sendBtn?.addEventListener('click', send)
+  let messageInputComposing = false
+  let messageCompositionEndedAt = -Infinity
+  els.messageInput?.addEventListener('compositionstart', () => {
+    messageInputComposing = true
+  })
+  els.messageInput?.addEventListener('compositionend', () => {
+    messageInputComposing = false
+    messageCompositionEndedAt = performance.now()
+  })
   els.messageInput?.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
+      const isImeCommit = messageInputComposing || event.isComposing || event.keyCode === 229 ||
+        performance.now() - messageCompositionEndedAt < 50
+      if (isImeCommit) return
       event.preventDefault()
       send()
     }

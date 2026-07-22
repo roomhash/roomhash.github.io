@@ -17,9 +17,11 @@
 ## Future room features
 
 - Peer-to-peer video and audio calls.
-- Online multiplayer mini-games with deterministic state synchronization.
+- ~~Online multiplayer mini-games with deterministic state synchronization.~~ Pixel Garden provides the first RoomHash WASM/P2P demo.
 - Module discovery, installation UI, and compatibility negotiation.
-- Optional channel aliases and per-channel directory sharing controls.
-- Persistent torrent seeding with File System Access or OPFS where browser support allows it.
+- ~~Optional channel aliases.~~
+- Per-channel directory sharing controls.
+- ~~Persist completed torrent files in IndexedDB and automatically restore seeding after reload.~~
+- Add File System Access or OPFS-backed persistent seeding for larger files where browser support allows it.
 - Torrent file selection, per-file preload controls, cancellation, and storage quotas.
 - Content safety controls, reporting, block lists, and magnet allow/deny policies.
