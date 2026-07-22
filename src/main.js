@@ -39,6 +39,7 @@ import {
   saveTorrentPreload
 } from './storage.js'
 import { bindUi } from './ui.js'
+import { clientLog } from './client-log.js'
 import { localizeError, setLanguagePreference, t } from './i18n.js'
 import { MessageModuleRegistry } from './modules/registry.js'
 import {
@@ -349,6 +350,7 @@ async function startChannel(channelId) {
         if (channelId === activeChannel) ui?.setStatus(state.status)
       },
       onStatus(status) {
+        clientLog.info('mesh', channelId.slice(0, 8), status)
         state.status = status
         if (channelId === activeChannel) ui?.setStatus(status)
       }
@@ -601,6 +603,9 @@ async function boot() {
       saveRelaySettings(settings)
       ui?.setRelaySettings(settings, runtimeCapabilities.publicStatus.public)
     },
+    onClearClientLogs() {
+      clientLog.clear()
+    },
     async onEnableUpnp() {
       try {
         ui?.setPublicStatus({ state: 'checking', public: false, detailKey: 'status.upnpChecking' })
@@ -612,6 +617,8 @@ async function boot() {
       }
     }
   }, { moduleRegistry })
+
+  clientLog.subscribe((entries) => ui?.setClientLogs(entries))
 
   ui.setTracker(tracker)
   ui.setNickname(nickname)

@@ -124,6 +124,13 @@
           </div>
           <div id="online-list" class="online-list"></div>
         </section>
+        <section class="rail-tools" aria-label="Client tools" data-i18n-aria-label="logs.tools">
+          <button id="toggle-client-log" class="rail-tool-button" type="button" aria-expanded="false" aria-controls="client-log-panel">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h10M4 19h13"/><circle cx="18" cy="12" r="2"/></svg>
+            <span data-i18n="logs.open">Client log</span>
+            <span id="client-log-count" class="rail-tool-count">0</span>
+          </button>
+        </section>
         <section id="file-cabinet" class="rail-section file-cabinet" hidden>
           <div class="section-heading">
             <span data-i18n="cabinet.title">Local seeds</span>
@@ -132,6 +139,25 @@
             </button>
           </div>
           <div id="seed-list" class="seed-list"><p class="empty-hint" data-i18n="cabinet.empty">No locally cached seeds.</p></div>
+        </section>
+        <section id="client-log-panel" class="rail-section client-log-panel" hidden>
+          <div class="section-heading">
+            <span data-i18n="logs.title">Client log</span>
+            <button id="close-client-log" class="section-collapse" type="button" aria-label="Close client log" data-i18n-aria-label="logs.close">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+          </div>
+          <div class="client-log-controls">
+            <input id="client-log-search" type="search" placeholder="Filter logs" data-i18n-placeholder="logs.search" data-i18n-aria-label="logs.search">
+            <select id="client-log-level" aria-label="Log level" data-i18n-aria-label="logs.level">
+              <option value="all" data-i18n="logs.all">All</option>
+              <option value="info" data-i18n="logs.info">Info</option>
+              <option value="warn" data-i18n="logs.warn">Warnings</option>
+              <option value="error" data-i18n="logs.error">Errors</option>
+            </select>
+          </div>
+          <div id="client-log-list" class="client-log-list" role="log" aria-live="off"></div>
+          <button id="clear-client-log" class="secondary-button client-log-clear" type="button" data-i18n="logs.clear">Clear log</button>
         </section>
         <section class="rail-section network-card">
           <div class="section-heading"><span data-i18n="relay.state">Relay state</span></div>

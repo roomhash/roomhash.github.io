@@ -163,6 +163,14 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     enableUpnp: byId('enable-upnp'),
     navToggle: byId('nav-toggle'),
     membersToggle: byId('members-toggle')
+    ,toggleClientLog: byId('toggle-client-log')
+    ,clientLogPanel: byId('client-log-panel')
+    ,closeClientLog: byId('close-client-log')
+    ,clientLogSearch: byId('client-log-search')
+    ,clientLogLevel: byId('client-log-level')
+    ,clientLogList: byId('client-log-list')
+    ,clientLogCount: byId('client-log-count')
+    ,clearClientLog: byId('clear-client-log')
     ,collapseSidebar: byId('collapse-sidebar')
     ,collapseChannelList: byId('collapse-channel-list')
     ,collapseMembers: byId('collapse-members')
@@ -331,6 +339,69 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     syncCollapseAria()
   }
   els.closeFileCabinet?.addEventListener('click', () => setFileCabinetOpen(false))
+  let clientLogOpen = false
+  let clientLogEntries = []
+  const renderClientLogs = () => {
+    if (!els.clientLogList) return
+    const level = els.clientLogLevel?.value || 'all'
+    const query = (els.clientLogSearch?.value || '').trim().toLowerCase()
+    const entries = clientLogEntries.filter((entry) => {
+      if (level !== 'all' && entry.level !== level) return false
+      if (!query) return true
+      return `${entry.level} ${entry.source} ${entry.message}`.toLowerCase().includes(query)
+    })
+    if (els.clientLogCount) els.clientLogCount.textContent = String(clientLogEntries.length)
+    els.clientLogList.replaceChildren()
+    if (!entries.length) {
+      const empty = doc.createElement('p')
+      empty.className = 'client-log-empty'
+      empty.textContent = t('logs.empty')
+      els.clientLogList.appendChild(empty)
+      return
+    }
+    const fragment = doc.createDocumentFragment()
+    for (const entry of entries) {
+      const item = doc.createElement('article')
+      item.className = `client-log-entry ${entry.level}`
+      const head = doc.createElement('div')
+      head.className = 'client-log-entry-head'
+      const badge = doc.createElement('span')
+      badge.className = 'client-log-level'
+      badge.textContent = entry.level
+      const source = doc.createElement('span')
+      source.className = 'client-log-source'
+      source.textContent = entry.source
+      const time = doc.createElement('time')
+      time.className = 'client-log-time'
+      time.dateTime = new Date(entry.ts).toISOString()
+      time.textContent = new Date(entry.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      const message = doc.createElement('p')
+      message.className = 'client-log-message'
+      message.textContent = entry.message
+      head.append(badge, source, time)
+      item.append(head, message)
+      fragment.appendChild(item)
+    }
+    els.clientLogList.appendChild(fragment)
+    if (clientLogOpen) els.clientLogList.scrollTop = els.clientLogList.scrollHeight
+  }
+  const setClientLogOpen = (open) => {
+    clientLogOpen = Boolean(open)
+    if (els.clientLogPanel) els.clientLogPanel.hidden = !clientLogOpen
+    els.toggleClientLog?.setAttribute('aria-expanded', String(clientLogOpen))
+    if (clientLogOpen) {
+      doc.body.classList.remove('member-rail-collapsed')
+      if (isCompact()) doc.body.classList.add('members-open')
+      persistLayout('member-rail', false)
+      renderClientLogs()
+    }
+    syncCollapseAria()
+  }
+  els.toggleClientLog?.addEventListener('click', () => setClientLogOpen(!clientLogOpen))
+  els.closeClientLog?.addEventListener('click', () => setClientLogOpen(false))
+  els.clientLogSearch?.addEventListener('input', renderClientLogs)
+  els.clientLogLevel?.addEventListener('change', renderClientLogs)
+  els.clearClientLog?.addEventListener('click', () => handlers.onClearClientLogs?.())
   const toggleChannelRail = () => {
     if (isNarrow()) {
       doc.body.classList.toggle('channels-open')
@@ -488,6 +559,10 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
         item.append(copy, dot)
         els.onlineList.appendChild(item)
       }
+    },
+    setClientLogs(entries = []) {
+      clientLogEntries = entries
+      renderClientLogs()
     },
     setLocalSeeds(seeds = []) {
       if (!els.seedList) return

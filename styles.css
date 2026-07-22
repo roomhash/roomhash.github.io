@@ -167,6 +167,29 @@ body.member-rail-collapsed #members-toggle { display: inline-grid; }
 .file-cabinet[hidden] { display: none; }
 .file-cabinet { padding: 14px 12px; }
 .seed-list { display: grid; gap: 9px; }
+.rail-tools { padding: 12px; border-bottom: 1px solid var(--border); }
+.rail-tool-button { width: 100%; min-height: 48px; display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 10px; padding: 0 12px; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+.rail-tool-button:hover, .rail-tool-button[aria-expanded="true"] { color: var(--text); background: var(--surface-2); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.rail-tool-button svg { width: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.rail-tool-count { min-width: 26px; padding: 3px 7px; color: var(--faint); background: var(--bg); border-radius: 999px; font: 700 9px/1.4 var(--mono); text-align: center; }
+.client-log-panel[hidden] { display: none; }
+.client-log-panel { padding: 14px 12px; }
+.client-log-controls { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 7px; margin-bottom: 9px; }
+.client-log-controls input, .client-log-controls select { width: 100%; min-height: 44px; padding: 0 10px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-size: 11px; }
+.client-log-controls input:focus, .client-log-controls select:focus { outline: 2px solid color-mix(in srgb, var(--info) 65%, transparent); outline-offset: 1px; }
+.client-log-list { display: grid; gap: 7px; max-height: min(42dvh, 420px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.client-log-entry { padding: 9px; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--info); border-radius: var(--radius-sm); }
+.client-log-entry.warn { border-left-color: var(--accent); }
+.client-log-entry.error { border-left-color: var(--danger); }
+.client-log-entry-head { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; color: var(--faint); font: 700 8px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .04em; }
+.client-log-level { padding: 2px 5px; color: var(--info); background: color-mix(in srgb, var(--info) 12%, transparent); border-radius: 5px; }
+.client-log-entry.warn .client-log-level { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.client-log-entry.error .client-log-level { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.client-log-source { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-log-time { margin-left: auto; }
+.client-log-message { margin: 0; color: var(--text); font: 10px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.client-log-empty { margin: 0; padding: 20px 10px; color: var(--muted); border: 1px dashed var(--border); border-radius: var(--radius-sm); font-size: 10px; text-align: center; }
+.client-log-clear { width: 100%; min-height: 44px; margin-top: 9px; }
 .seed-item { display: grid; gap: 6px; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .seed-item-head { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .seed-item-head strong { flex: 1; min-width: 0; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
@@ -240,6 +263,8 @@ select { width: 100%; color-scheme: dark; }
 }
 
 @media (max-width: 720px) {
+  .client-log-controls { grid-template-columns: 1fr; }
+  .client-log-list { max-height: 38dvh; }
   .workspace { display: block; }
   .channel-rail { position: fixed; z-index: 40; inset: 0 auto 0 0; width: min(280px, 88vw); transform: translateX(-105%); box-shadow: var(--shadow); transition: transform 220ms ease; }
   body.channels-open .channel-rail { transform: translateX(0); }
