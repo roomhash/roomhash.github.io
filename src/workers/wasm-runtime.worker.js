@@ -7,6 +7,7 @@ const REQUIRED_FORM_EXPORTS = [
   'memory', 'rh_abi_version', 'rh_alloc', 'rh_dealloc', 'rh_init', 'rh_dispatch',
   'rh_output_ptr', 'rh_output_len'
 ]
+const REQUIRED_SURFACE_EXPORTS = REQUIRED_FORM_EXPORTS
 const MAX_MEMORY_BYTES = 64 * 1024 * 1024
 const MAX_JSON_BYTES = 2 * 1024 * 1024
 
@@ -71,6 +72,23 @@ function postFormResult(result) {
   if (result.persist && typeof result.persist === 'object') postMessage({ type: 'persist', state: result.persist })
 }
 
+function postSurfaceResult(result) {
+  if (!result || typeof result !== 'object') return
+  if (result.error) {
+    postMessage({ type: 'surface-error', message: String(result.error) })
+    return
+  }
+  if (result.scene && typeof result.scene === 'object') postMessage({ type: 'surface-scene', scene: result.scene })
+  for (const effect of Array.isArray(result.effects) ? result.effects.slice(0, 32) : []) {
+    postMessage({ type: 'surface-effect', effect })
+  }
+  for (const event of Array.isArray(result.events) ? result.events.slice(0, 256) : []) {
+    postMessage({ type: 'event', event })
+  }
+  if (result.snapshot && typeof result.snapshot === 'object') postMessage({ type: 'surface-snapshot', state: result.snapshot })
+  if (result.persist && typeof result.persist === 'object') postMessage({ type: 'persist', state: result.persist })
+}
+
 onmessage = async ({ data }) => {
   try {
     if (data.type === 'load') {
@@ -79,11 +97,14 @@ onmessage = async ({ data }) => {
       const instance = await WebAssembly.instantiate(module, {})
       api = instance.exports
       abi = Number(api.rh_abi_version?.())
-      const required = abi === 2 ? REQUIRED_FORM_EXPORTS : REQUIRED_PIXEL_EXPORTS
+      const required = abi === 3 ? REQUIRED_SURFACE_EXPORTS : abi === 2 ? REQUIRED_FORM_EXPORTS : REQUIRED_PIXEL_EXPORTS
       for (const name of required) if (!(name in api)) throw new Error(`missing ABI export: ${name}`)
-      if (abi !== 1 && abi !== 2) throw new Error('unsupported ABI version')
+      if (abi !== 1 && abi !== 2 && abi !== 3) throw new Error('unsupported ABI version')
       checkMemory()
-      if (abi === 2) {
+      if (abi === 3) {
+        postSurfaceResult(callJson('rh_init', data.context || {}))
+        postMessage({ type: 'ready', abi })
+      } else if (abi === 2) {
         postFormResult(callJson('rh_init', data.context || {}))
         postMessage({ type: 'ready', abi })
       } else {
@@ -94,7 +115,9 @@ onmessage = async ({ data }) => {
       return
     }
     if (!api) return
-    if (abi === 2 && data.type === 'form-action') {
+    if (abi === 3 && data.type === 'surface-input') {
+      postSurfaceResult(callJson('rh_dispatch', data.input || {}))
+    } else if (abi === 2 && data.type === 'form-action') {
       postFormResult(callJson('rh_dispatch', { kind: 'action', action: data.action, values: data.values, random: data.random }))
     } else if (abi === 2 && data.type === 'form-remote') {
       postFormResult(callJson('rh_dispatch', { kind: 'remote', event: data.event }))

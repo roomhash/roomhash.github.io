@@ -18,16 +18,16 @@
     {
       "id": "org.roomhash.whiteboard",
       "name": "Shared Whiteboard",
-      "summary": "在频道里共享一块会自动合并笔迹的像素白板。",
+      "summary": "响应式会议白板；WASM 自主布局并通过 Mesh 自动合并笔迹。",
       "runtime": "wasm",
       "path": "/appstore/whiteboard/",
       "manifest": "roomhash.json",
       "entry": "whiteboard.wasm",
       "torrent": "whiteboard.torrent",
-      "infoHash": "00cca8f396835ebdbec3706ee9fd359c46dddc05",
+      "infoHash": "751985b5eee80ade9c548e99fb85c0a4e8077ff3",
       "webSeed": "https://roomhash.github.io/appstore/whiteboard/whiteboard.wasm",
-      "entrySize": 5966,
-      "magnet": "magnet:?xt=urn:btih:00cca8f396835ebdbec3706ee9fd359c46dddc05&dn=whiteboard.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.torrent"
+      "entrySize": 139418,
+      "magnet": "magnet:?xt=urn:btih:751985b5eee80ade9c548e99fb85c0a4e8077ff3&dn=whiteboard.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.torrent"
     },
     {
       "id": "roomhash-voting",
