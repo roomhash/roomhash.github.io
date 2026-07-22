@@ -1,8 +1,3 @@
-const REQUIRED_PIXEL_EXPORTS = [
-  'memory', 'rh_abi_version', 'rh_width', 'rh_height', 'rh_framebuffer_ptr',
-  'rh_framebuffer_len', 'rh_init', 'rh_input', 'rh_apply_event',
-  'rh_cell_count', 'rh_cell_actor', 'rh_cell_flower', 'rh_cell_clock'
-]
 const REQUIRED_FORM_EXPORTS = [
   'memory', 'rh_abi_version', 'rh_alloc', 'rh_dealloc', 'rh_init', 'rh_dispatch',
   'rh_output_ptr', 'rh_output_len'
@@ -14,21 +9,46 @@ const MAX_JSON_BYTES = 2 * 1024 * 1024
 let api = null
 let clock = 0
 let abi = 0
-const strokePoints = new Map()
+let numericGrid = null
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
+
+const NUMERIC_GRID_EXPORT_KEYS = [
+  'width', 'height', 'framebufferPointer', 'framebufferLength', 'initialize',
+  'write', 'merge', 'recordCount', 'recordActor', 'recordValue', 'recordClock'
+]
+
+function loadNumericGridContract(contract) {
+  if (contract?.schema !== 'roomhash.numeric-grid/v1') throw new Error('missing numeric-grid contract')
+  if (!Number.isInteger(contract.columns) || contract.columns < 1 || contract.columns > 256) throw new Error('invalid numeric-grid columns')
+  if (!Number.isInteger(contract.rows) || contract.rows < 1 || contract.rows > 256) throw new Error('invalid numeric-grid rows')
+  const bindings = {}
+  for (const key of NUMERIC_GRID_EXPORT_KEYS) {
+    const name = contract.exports?.[key]
+    if (!/^rh_[a-z0-9_]{1,63}$/.test(name || '') || typeof api[name] !== 'function') {
+      throw new Error(`invalid numeric-grid export: ${key}`)
+    }
+    bindings[key] = api[name]
+  }
+  return { columns: contract.columns, rows: contract.rows, bindings }
+}
+
+function gridCall(name, ...values) {
+  if (!numericGrid?.bindings[name]) throw new Error(`numeric-grid operation unavailable: ${name}`)
+  return numericGrid.bindings[name](...values)
+}
 
 function checkMemory() {
   if (!(api.memory instanceof WebAssembly.Memory)) throw new Error('missing exported memory')
   if (api.memory.buffer.byteLength > MAX_MEMORY_BYTES) throw new Error('WASM memory limit exceeded')
 }
 
-function render() {
+function renderNumericGrid() {
   checkMemory()
-  const width = Number(api.rh_width())
-  const height = Number(api.rh_height())
-  const pointer = Number(api.rh_framebuffer_ptr())
-  const length = Number(api.rh_framebuffer_len())
+  const width = Number(gridCall('width'))
+  const height = Number(gridCall('height'))
+  const pointer = Number(gridCall('framebufferPointer'))
+  const length = Number(gridCall('framebufferLength'))
   if (width < 1 || height < 1 || width > 1024 || height > 1024 || length !== width * height * 4) {
     throw new Error('invalid framebuffer')
   }
@@ -97,9 +117,9 @@ onmessage = async ({ data }) => {
       const instance = await WebAssembly.instantiate(module, {})
       api = instance.exports
       abi = Number(api.rh_abi_version?.())
-      const required = abi === 3 ? REQUIRED_SURFACE_EXPORTS : abi === 2 ? REQUIRED_FORM_EXPORTS : REQUIRED_PIXEL_EXPORTS
-      for (const name of required) if (!(name in api)) throw new Error(`missing ABI export: ${name}`)
       if (abi !== 1 && abi !== 2 && abi !== 3) throw new Error('unsupported ABI version')
+      const required = abi === 3 ? REQUIRED_SURFACE_EXPORTS : abi === 2 ? REQUIRED_FORM_EXPORTS : ['memory', 'rh_abi_version']
+      for (const name of required) if (!(name in api)) throw new Error(`missing ABI export: ${name}`)
       checkMemory()
       if (abi === 3) {
         postSurfaceResult(callJson('rh_init', data.context || {}))
@@ -108,9 +128,10 @@ onmessage = async ({ data }) => {
         postFormResult(callJson('rh_init', data.context || {}))
         postMessage({ type: 'ready', abi })
       } else {
-        api.rh_init()
-        postMessage({ type: 'ready', abi, width: Number(api.rh_width()), height: Number(api.rh_height()) })
-        render()
+        numericGrid = loadNumericGridContract(data.legacyNumericGrid)
+        gridCall('initialize')
+        postMessage({ type: 'ready', abi, width: Number(gridCall('width')), height: Number(gridCall('height')) })
+        renderNumericGrid()
       }
       return
     }
@@ -125,54 +146,42 @@ onmessage = async ({ data }) => {
       postFormResult(callJson('rh_dispatch', { kind: 'state-request' }))
     } else if (abi === 2 && data.type === 'form-snapshot') {
       postFormResult(callJson('rh_dispatch', { kind: 'snapshot', state: data.state }))
-    } else if (data.type === 'end-stroke') {
-      api.rh_end_stroke?.(Number(data.actor))
-      strokePoints.delete(Number(data.actor))
-    } else if (data.type === 'input') {
-      const gridWidth = Number(api.rh_grid_width?.() || 32)
-      const gridHeight = Number(api.rh_grid_height?.() || 32)
-      const cellX = Math.max(0, Math.min(gridWidth - 1, Math.floor(Number(data.x) * gridWidth / Number(api.rh_width()))))
-      const cellY = Math.max(0, Math.min(gridHeight - 1, Math.floor(Number(data.y) * gridHeight / Number(api.rh_height()))))
+    } else if (abi === 1 && data.type === 'legacy-input') {
+      const pointX = Math.max(0, Math.min(numericGrid.columns - 1, Math.floor(Number(data.x) * numericGrid.columns / Number(gridCall('width')))))
+      const pointY = Math.max(0, Math.min(numericGrid.rows - 1, Math.floor(Number(data.y) * numericGrid.rows / Number(gridCall('height')))))
       const actor = Number(data.actor)
-      const previous = data.phase === 'start' ? null : strokePoints.get(actor)
+      const value = Math.max(0, Math.min(255, Number(data.value) || 0))
       clock = (clock + 1) >>> 0
-      if (data.phase === 'start') api.rh_begin_stroke?.(actor)
-      api.rh_input(cellX, cellY, Number(data.flower), actor, clock)
-      strokePoints.set(actor, [cellX, cellY])
-      if (data.phase === 'end') api.rh_end_stroke?.(actor)
-      render()
+      gridCall('write', pointX, pointY, value, actor, clock)
+      renderNumericGrid()
       postMessage({ type: 'event', event: {
-        kind: 'plant', x: cellX, y: cellY,
-        fromX: previous?.[0] ?? cellX, fromY: previous?.[1] ?? cellY,
-        flower: Number(data.flower), actor, clock, start: data.phase === 'start'
+        kind: 'legacy-operation', values: [pointX, pointY, value, actor, clock]
       } })
-    } else if (data.type === 'remote') {
-      const event = data.event
-      clock = Math.max(clock, Number(event.clock) >>> 0)
-      if (api.rh_apply_stroke && Number.isFinite(Number(event.fromX)) && Number.isFinite(Number(event.fromY))) {
-        api.rh_apply_stroke(Number(event.fromX), Number(event.fromY), Number(event.x), Number(event.y), Number(event.flower), Number(event.actor), Number(event.clock))
-      } else {
-        if (event.start) api.rh_begin_stroke?.(Number(event.actor))
-        api.rh_apply_event(Number(event.x), Number(event.y), Number(event.flower), Number(event.actor), Number(event.clock))
-      }
-      render()
-    } else if (data.type === 'snapshot-request') {
-      const cells = []
-      const count = Math.min(Number(api.rh_cell_count()), 65536)
+    } else if (abi === 1 && data.type === 'legacy-remote') {
+      const values = Array.isArray(data.values) ? data.values.slice(0, 5).map(Number) : []
+      if (values.length !== 5 || values.some((value) => !Number.isFinite(value))) throw new Error('invalid legacy operation')
+      const [pointX, pointY, value, actor, remoteClock] = values
+      if (pointX < 0 || pointX >= numericGrid.columns || pointY < 0 || pointY >= numericGrid.rows) throw new Error('legacy operation outside bounds')
+      clock = Math.max(clock, remoteClock >>> 0)
+      gridCall('merge', pointX, pointY, value, actor, remoteClock)
+      renderNumericGrid()
+    } else if (abi === 1 && data.type === 'snapshot-request') {
+      const records = []
+      const count = Math.min(Number(gridCall('recordCount')), numericGrid.columns * numericGrid.rows)
       for (let index = 0; index < count; index += 1) {
-        const flower = Number(api.rh_cell_flower(index))
-        const cellClock = Number(api.rh_cell_clock(index))
-        if (cellClock) cells.push([index, flower, Number(api.rh_cell_actor(index)), cellClock])
+        const recordClock = Number(gridCall('recordClock', index))
+        if (recordClock) records.push([index, Number(gridCall('recordValue', index)), Number(gridCall('recordActor', index)), recordClock])
       }
-      postMessage({ type: 'snapshot', cells })
-    } else if (data.type === 'snapshot') {
-      const gridWidth = Number(api.rh_grid_width?.() || 32)
-      for (const cell of data.cells.slice(0, 65536)) {
-        const index = Number(cell[0])
-        api.rh_apply_event(index % gridWidth, Math.floor(index / gridWidth), Number(cell[1]), Number(cell[2]), Number(cell[3]))
-        clock = Math.max(clock, Number(cell[3]) >>> 0)
+      postMessage({ type: 'snapshot', records })
+    } else if (abi === 1 && data.type === 'legacy-snapshot') {
+      for (const record of data.records.slice(0, numericGrid.columns * numericGrid.rows)) {
+        if (!Array.isArray(record) || record.length !== 4) continue
+        const index = Number(record[0])
+        if (!Number.isInteger(index) || index < 0 || index >= numericGrid.columns * numericGrid.rows) continue
+        gridCall('merge', index % numericGrid.columns, Math.floor(index / numericGrid.columns), Number(record[1]), Number(record[2]), Number(record[3]))
+        clock = Math.max(clock, Number(record[3]) >>> 0)
       }
-      render()
+      renderNumericGrid()
     } else if (data.type === 'ping') {
       checkMemory()
       postMessage({ type: 'pong' })

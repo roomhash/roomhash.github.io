@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { MessageModuleRegistry } from '../src/modules/registry.js'
 import { classifyTorrentFile, isMagnetUri } from '../src/modules/torrent-media.js'
 import { SUPPORTED_WASM_ABIS } from '../src/modules/wasm-app.js'
@@ -29,5 +30,16 @@ describe('message modules', () => {
     assert.equal(SUPPORTED_WASM_ABIS.has('roomhash-pixel-grid-v1'), true)
     assert.equal(SUPPORTED_WASM_ABIS.has('roomhash-form-v1'), true)
     assert.equal(SUPPORTED_WASM_ABIS.has('standalone-web'), false)
+  })
+
+  it('keeps the host adapter free of application-domain behavior', async () => {
+    const sources = await Promise.all([
+      readFile(new URL('../src/modules/wasm-app.js', import.meta.url), 'utf8'),
+      readFile(new URL('../src/workers/wasm-runtime.worker.js', import.meta.url), 'utf8')
+    ])
+    const forbidden = /whiteboard|flower|plant|eraser|clear.?board|stroke|cell/i
+    for (const source of sources) assert.doesNotMatch(source, forbidden)
+    assert.match(sources[0], /save-image/)
+    assert.match(sources[0], /file\.download/)
   })
 })

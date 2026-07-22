@@ -3,8 +3,18 @@
   "apps": [
     {
       "id": "org.roomhash.pixel-garden",
-      "name": "Pixel Garden",
-      "summary": "在频道里共同种下一座会生长的像素花园。",
+      "name": "Shared Garden",
+      "summary": "Plant a shared pixel garden and watch it grow with everyone in the channel.",
+      "i18n": {
+        "en": {
+          "name": "Shared Garden",
+          "summary": "Plant a shared pixel garden and watch it grow with everyone in the channel."
+        },
+        "zh-CN": {
+          "name": "共享花园",
+          "summary": "和频道成员一起种下像素花园，让每一次互动都成为共同生长的一部分。"
+        }
+      },
       "runtime": "wasm",
       "path": "/appstore/pixel-garden/",
       "manifest": "roomhash.json",
@@ -18,44 +28,74 @@
     {
       "id": "org.roomhash.whiteboard",
       "name": "Shared Whiteboard",
-      "summary": "响应式会议白板；WASM 自主布局并通过 Mesh 自动合并笔迹。",
+      "summary": "Sketch together on a responsive meeting whiteboard with P2P sync, undo, erase, and PNG export.",
+      "i18n": {
+        "en": {
+          "name": "Shared Whiteboard",
+          "summary": "Sketch together on a responsive meeting whiteboard with P2P sync, undo, erase, and PNG export."
+        },
+        "zh-CN": {
+          "name": "共享白板",
+          "summary": "适合会议协作的响应式共享白板，支持 P2P 笔迹同步、撤销、擦除与图片保存。"
+        }
+      },
       "runtime": "wasm",
       "path": "/appstore/whiteboard/",
       "manifest": "roomhash.json",
       "entry": "whiteboard.wasm",
       "torrent": "whiteboard.torrent",
-      "infoHash": "751985b5eee80ade9c548e99fb85c0a4e8077ff3",
+      "infoHash": "b2704012fbc7064c9005d8fecbb5437c229d9956",
       "webSeed": "https://roomhash.github.io/appstore/whiteboard/whiteboard.wasm",
-      "entrySize": 139418,
-      "magnet": "magnet:?xt=urn:btih:751985b5eee80ade9c548e99fb85c0a4e8077ff3&dn=whiteboard.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.torrent"
+      "entrySize": 144137,
+      "magnet": "magnet:?xt=urn:btih:b2704012fbc7064c9005d8fecbb5437c229d9956&dn=whiteboard.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.torrent"
     },
     {
       "id": "roomhash-voting",
-      "name": "分布式公开投票",
-      "summary": "由各节点收集、转发并公开汇总结果的 Mesh 投票。",
+      "name": "Shared Polls",
+      "summary": "Create auditable public polls, deduplicate votes by user hash, and count what this node has collected.",
+      "i18n": {
+        "en": {
+          "name": "Shared Polls",
+          "summary": "Create auditable public polls, deduplicate votes by user hash, and count what this node has collected."
+        },
+        "zh-CN": {
+          "name": "共享投票",
+          "summary": "创建可公开审计的投票，按用户 Hash 排重，并汇总当前节点实际收集到的票据。"
+        }
+      },
       "runtime": "wasm",
       "path": "/appstore/voting/",
       "manifest": "roomhash.json",
       "entry": "voting.wasm",
       "torrent": "voting.torrent",
-      "infoHash": "db95b7e81462a023f4c8e9428c7dbfadb8baa6fb",
       "webSeed": "https://roomhash.github.io/appstore/voting/voting.wasm",
-      "entrySize": 235240,
-      "magnet": "magnet:?xt=urn:btih:db95b7e81462a023f4c8e9428c7dbfadb8baa6fb&dn=voting.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fvoting%2Fvoting.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fvoting%2Fvoting.torrent"
+      "entrySize": 255987,
+      "magnet": "magnet:?xt=urn:btih:da2f79310d05b370312e4e03cd4f493331359309&dn=voting.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fvoting%2Fvoting.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fvoting%2Fvoting.torrent",
+      "infoHash": "da2f79310d05b370312e4e03cd4f493331359309"
     },
     {
       "id": "org.roomhash.market",
-      "name": "分布式 Market",
-      "summary": "公开商品信息，以端到端加密购买意向为买卖双方搭线。",
+      "name": "Shared Market",
+      "summary": "Publish listings and connect buyers with sellers over P2P; contact and delivery details are encrypted for the seller.",
+      "i18n": {
+        "en": {
+          "name": "Shared Market",
+          "summary": "Publish listings and connect buyers with sellers over P2P; contact and delivery details are encrypted for the seller."
+        },
+        "zh-CN": {
+          "name": "共享市场",
+          "summary": "通过 P2P 发布商品并撮合买卖双方；买家联系方式与交付信息仅加密发送给卖家。"
+        }
+      },
       "runtime": "wasm",
       "path": "/appstore/market/",
       "manifest": "roomhash.json",
       "entry": "market.wasm",
       "torrent": "market.torrent",
-      "infoHash": "70d752182642669ed7a11f95d5a38fa1c7633285",
       "webSeed": "https://roomhash.github.io/appstore/market/market.wasm",
-      "entrySize": 388656,
-      "magnet": "magnet:?xt=urn:btih:70d752182642669ed7a11f95d5a38fa1c7633285&dn=market.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fmarket%2Fmarket.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fmarket%2Fmarket.torrent"
+      "entrySize": 433113,
+      "magnet": "magnet:?xt=urn:btih:c819eb7bfc25322663db0a243d109af98009a53b&dn=market.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fmarket%2Fmarket.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fmarket%2Fmarket.torrent",
+      "infoHash": "c819eb7bfc25322663db0a243d109af98009a53b"
     }
   ]
 }

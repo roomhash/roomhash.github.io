@@ -1,89 +1,51 @@
-# RoomHash 分布式公开投票 WASM
+# RoomHash 共享投票
 
-这是可嵌入 RoomHash 消息内运行的 Rust WASM 投票应用。投票创建、身份
-Hash、公开事件、按用户排重、改票 LWW、本地统计、原始票据审计、持久化和
-快照合并均在 WASM 内完成。模块无 imports，不自行访问网络或 DOM。
+这是一个宿主无关、响应式的纯 Rust WASM 投票应用。所有用户可见的应用界面、
+导航、表单草稿、命中检测、滚动、结果条形图和公开票据列表都由 WASM 生成并
+绘制；宿主只提供 Portable Surface Canvas、输入、全屏、文本输入、持久化和
+不透明 P2P 消息转发能力。
 
 > 不同节点看到的统计结果可能不同，取决于各自实际收集到的数据。这是每个
 > 收集者的本地可见视图，不是全局强一致结果。
 
-## 构建和检查
+## 构建与检查
 
 需要 Rust、`wasm32-unknown-unknown` target 和 Node.js 20+：
 
 ```sh
 rustup target add wasm32-unknown-unknown
-npm run build
 npm run check
 ```
 
-稳定发布产物位于 `dist/`：
+`dist/` 只包含独立发布所需文件：
 
-- `roomhash.json`：`schema: roomhash.app/v1`、`runtime: wasm`、
-  `abi: roomhash-form-v1`
-- `voting.wasm`：无 imports 的 ABI v2 模块
-- `README.md` 与 `LICENSE`
+- `voting.wasm`：无 imports 的 Portable Surface ABI v3 应用；
+- `roomhash.json`：`abi: portable-surface-v1`；
+- `README.md`、`LICENSE`。
 
-`npm run check` 会执行格式、Clippy、Rust 单元测试、release WASM 构建、
-imports/exports/manifest/hash 检查，并通过真实 WASM 内存 ABI 完成初始化、创建
-投票、投票、公开表格和快照的端到端检查。
+检查覆盖 Rust 格式、Clippy、单元测试、真实 WASM ABI、无 imports、manifest
+哈希、320×480/375×812/768×1024/1440×900 响应式场景、WASM 内全屏入口、
+两节点乱序事件收敛和快照恢复。
 
-## ABI v2
+## 分布式语义
 
-模块导出 `memory` 以及：
+- 创建投票会生成公开 `poll-created` 事件；并发创建按 event ID 确定性选择
+  当前投票。
+- 每张 ballot 记录 nick、voterHash、optionId、revision、pollId 和 eventId。
+- 当前投票按 `voterHash` 只计一票；最大 `(revision,eventId)` 胜出，因此改票
+  和乱序投递仍然收敛。
+- WASM 验证所有远程事件和快照，按 event ID 排重，拒绝 echo 和非法字段。
+- 所有合法原始 ballot 保留并公开展示，明确标识“当前计票”或“已被改票替代”。
+- 宿主 Mesh 只负责多跳转发和 anti-entropy，不理解投票领域数据。
 
-```text
-rh_abi_version() -> 2
-rh_alloc(len) -> ptr
-rh_dealloc(ptr, len)
-rh_init(ptr, len) -> success
-rh_dispatch(ptr, len) -> success
-rh_output_ptr() -> ptr
-rh_output_len() -> len
-```
+## Portable Surface ABI
 
-输入输出均为 UTF-8 JSON。`rh_init` 接收：
+模块导出 ABI v3 标准入口，输入仅使用通用 `viewport`、`pointer`、`wheel`、
+`key`、`text`、`remote`、`state-request` 和 `snapshot`。输出为 Canvas2D display
+list、通用 effects、公开 events、snapshot 和 persist。应用不依赖 RoomHash DOM、
+CSS、HTML 表单或专用 JavaScript，也可以运行在其他兼容宿主中。
 
-```json
-{
-  "nickname": "Alice",
-  "peerId": "peer-id",
-  "identitySeed": "64-char-hex",
-  "channelId": "channel-id",
-  "instanceId": "vote-id",
-  "savedState": null
-}
-```
-
-WASM 内使用 SHA-256 对 `identitySeed` 再哈希生成公开 `voterHash`。
-`rh_dispatch` 支持：
-
-- `{"kind":"action","action":"create-poll","values":{"title":"...","options":"A\nB"}}`
-- `{"kind":"action","action":"cast-vote","values":{"optionId":"..."}}`
-- `{"kind":"remote","event":{...}}`
-- `{"kind":"state-request"}`
-- `{"kind":"snapshot","state":{...}}`
-
-输出包含声明式 `view`，本地产生且应公开广播的 `events`，可选 `snapshot`，
-以及每次都返回的 `persist` 状态。宿主负责把 `events` 放入现有 RoomHash Mesh；
-Mesh 的 frame 去重、TTL、多跳转发和重连交换负责事件投递，WASM 则按 event ID
-拒绝 echo，并以公开事件全集实现 anti-entropy 快照合并。
-
-## 收敛规则
-
-- 创建投票是公开 `poll-created` 事件；若并发创建，event ID 字典序较大的定义
-  成为当前投票，所有节点确定性收敛。
-- 每张公开 ballot 包含 nick、voterHash、optionId、revision、pollId、eventId。
-- 当前投票按 `voterHash` 只计一票；最大 `(revision,eventId)` 胜出，因此可改票
-  且乱序投递仍收敛。
-- 事件 ID 是规范字段的 SHA-256。重复 remote event 和 snapshot echo 不会重复
-  计票；所有合法事件保留在公开状态中，当前 winner 显示在审计表。
-
-## 信任边界
-
-公开 user hash 和 event ID 是排重/完整性标识，并非密码学身份签名。当前 ABI
-由可信 RoomHash 宿主注入 identitySeed，可避免普通 UI 自选 hash；但若宿主或
-恶意运行时能伪造 identitySeed、公开事件或超大 revision，WASM 本身无法证明
-真实身份。高风险投票仍需宿主签名、公钥绑定和 revision 策略。
+公开 Hash 和 event ID 是排重与完整性标识，不等价于强身份签名。高风险投票
+仍需在宿主身份层引入公钥签名或外部认证。
 
 MIT License

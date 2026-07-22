@@ -16,7 +16,7 @@ async function sha256(path) {
   return createHash('sha256').update(await readFile(new URL(path, root))).digest('hex')
 }
 
-describe('AppStore publication', () => {
+describe('Roomlet publication', () => {
   it('indexes every checked-in application artifact', async () => {
     const catalog = await json('catalog.json')
     assert.equal(catalog.schema, 'roomhash.appstore/v1')
@@ -31,7 +31,14 @@ describe('AppStore publication', () => {
       const manifest = await json(`${app.path.replace('/appstore/', '')}${app.manifest}`)
       assert.equal(manifest.id, app.id)
       assert.equal(manifest.runtime, 'wasm')
+      assert.equal(typeof manifest.i18n?.en?.name, 'string')
+      assert.equal(typeof manifest.i18n?.['zh-CN']?.name, 'string')
       assert.match(manifest.abi, /^(roomhash-(pixel-grid|form)-v1|portable-surface-v1)$/)
+      assert.notEqual(manifest.abi, 'roomhash-form-v1', `${app.id} must own its UI inside WASM`)
+      if (manifest.abi === 'roomhash-pixel-grid-v1') {
+        assert.equal(manifest.legacyNumericGrid?.schema, 'roomhash.numeric-grid/v1')
+        assert.ok(manifest.legacyNumericGrid.controls.length > 0)
+      }
       const entry = await readFile(new URL(`${app.path.replace('/appstore/', '')}${app.entry}`, root))
       assert.equal(entry.length, app.entrySize)
     }
@@ -53,7 +60,7 @@ describe('AppStore publication', () => {
     }
   })
 
-  it('keeps the Pixel Garden info hash while moving its seed to AppStore', () => {
+  it('keeps the Shared Garden info hash while moving its seed to the Roomlet catalog', () => {
     const magnet = new URL(DEMO_PIXEL_GARDEN.magnet)
     assert.equal(magnet.searchParams.get('xt'), 'urn:btih:203d5be59b06376f0b1ef18e2360fc0e33a07cd4')
     assert.equal(magnet.searchParams.get('ws'), 'https://roomhash.github.io/appstore/pixel-garden/pixel_garden.wasm')

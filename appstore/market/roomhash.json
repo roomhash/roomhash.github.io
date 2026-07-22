@@ -1,17 +1,33 @@
 {
   "schema": "roomhash.app/v1",
   "id": "org.roomhash.market",
-  "name": "RoomHash Market",
-  "version": "1.0.0",
+  "name": "Shared Market",
+  "description": "Publish listings and connect buyers with sellers over P2P; contact and delivery details are encrypted for the seller.",
+  "i18n": {
+    "en": {
+      "name": "Shared Market",
+      "description": "Publish listings and connect buyers with sellers over P2P; contact and delivery details are encrypted for the seller.",
+      "privacy": "Listings and seller profiles are public. Buyer contact, delivery, and note fields are encrypted in WASM for the seller only.",
+      "notice": "Collection views may differ while the mesh is partitioned. RoomHash only introduces buyers and sellers; it does not process payments."
+    },
+    "zh-CN": {
+      "name": "共享市场",
+      "description": "通过 P2P 发布商品并撮合买卖双方；买家联系方式与交付信息仅加密发送给卖家。",
+      "privacy": "商品与卖家资料公开；买家联系方式、交付方式和备注会在 WASM 内加密，仅卖家可读取。",
+      "notice": "Mesh 分区期间，不同节点收集到的市场视图可能不同。RoomHash 只负责信息展示与搭线，不处理线上付款。"
+    }
+  },
+  "version": "2.1.0",
   "runtime": "wasm",
-  "abi": "roomhash-form-v1",
+  "abi": "portable-surface-v1",
   "entry": "market.wasm",
-  "sha256": "d2c0df29f7f9622d9b63fae12d0c0cfd7d0f43d4c437c94e641026aa95ccc049",
+  "sha256": "280141f6cc9ae91cf115335f425ed7854901fff4373bb70b28c1811566dc25e8",
   "permissions": [
     "channel.messages",
     "storage:512kb",
-    "media.seed"
+    "media.seed",
+    "crypto.random"
   ],
-  "privacy": "Listings are public. Purchase contact, delivery and note fields are encrypted inside WASM for the seller key.",
-  "notice": "Local collection views may differ during partitions. This app does not implement online payment."
+  "privacy": "Listings and seller profiles are public. Buyer contact, delivery, and note fields are encrypted in WASM for the seller only.",
+  "notice": "Collection views may differ while the mesh is partitioned. RoomHash only introduces buyers and sellers; it does not process payments."
 }

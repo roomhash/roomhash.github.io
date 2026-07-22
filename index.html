@@ -101,6 +101,24 @@
 
         <section class="composer-dock" aria-label="Message composer" data-i18n-aria-label="aria.composer">
           <div class="composer-wrap">
+            <div id="appstore-anchor" class="appstore-anchor">
+              <button id="appstore-trigger" class="appstore-trigger" type="button" aria-expanded="false" aria-controls="appstore-popover" title="Open Roomlets" aria-label="Open Roomlets" data-i18n-title="appstore.open" data-i18n-aria-label="appstore.open">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M17.5 14v7M14 17.5h7"/></svg>
+              </button>
+              <section id="appstore-popover" class="appstore-popover" role="dialog" aria-modal="false" aria-labelledby="appstore-title" tabindex="-1" hidden>
+                <header class="appstore-head">
+                  <div>
+                    <h2 id="appstore-title" data-i18n="appstore.title">Roomlet</h2>
+                  </div>
+                  <button id="appstore-close" class="icon-button" type="button" aria-label="Close Roomlets" data-i18n-aria-label="appstore.close">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                  </button>
+                </header>
+                <p class="appstore-help" data-i18n="appstore.help">Roomlets only show data synchronized from connected peers; completeness and consistency are not guaranteed.</p>
+                <div id="appstore-status" class="appstore-status" role="status" data-i18n="appstore.loading">Loading Roomlets...</div>
+                <div id="appstore-list" class="appstore-list"></div>
+              </section>
+            </div>
             <textarea id="message-input" rows="1" placeholder="Message this channel" aria-label="Message" data-i18n-placeholder="composer.placeholder" data-i18n-aria-label="aria.message"></textarea>
             <div class="composer-actions">
               <button id="attach-btn" class="icon-button" type="button" title="Seed and share files" aria-label="Seed and share files" data-i18n-title="composer.attach" data-i18n-aria-label="composer.attach">
@@ -109,25 +127,6 @@
               <button id="send-btn" class="send-button" type="button" data-i18n="common.send">Send</button>
             </div>
             <input id="file-input" type="file" multiple />
-          </div>
-          <div id="appstore-anchor" class="appstore-anchor">
-            <button id="appstore-trigger" class="appstore-trigger" type="button" aria-expanded="false" aria-controls="appstore-popover" title="Open AppStore" aria-label="Open AppStore" data-i18n-title="appstore.open" data-i18n-aria-label="appstore.open">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M17.5 14v7M14 17.5h7"/></svg>
-            </button>
-            <section id="appstore-popover" class="appstore-popover" role="dialog" aria-modal="false" aria-labelledby="appstore-title" tabindex="-1" hidden>
-              <header class="appstore-head">
-                <div>
-                  <span class="eyebrow" data-i18n="appstore.eyebrow">RoomHash apps</span>
-                  <h2 id="appstore-title" data-i18n="appstore.title">Send an app</h2>
-                </div>
-                <button id="appstore-close" class="icon-button" type="button" aria-label="Close AppStore" data-i18n-aria-label="appstore.close">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
-                </button>
-              </header>
-              <p class="appstore-help" data-i18n="appstore.help">Choose an app to share with this channel.</p>
-              <div id="appstore-status" class="appstore-status" role="status" data-i18n="appstore.loading">Loading apps...</div>
-              <div id="appstore-list" class="appstore-list"></div>
-            </section>
           </div>
         </section>
       </main>

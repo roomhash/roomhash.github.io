@@ -36,13 +36,15 @@ export function validatePortableScene(scene) {
   return scene
 }
 
-export function paintPortableScene(canvas, scene, { media = new Map(), maxDpr = 2 } = {}) {
+export function paintPortableScene(canvas, scene, { media = new Map(), maxDpr = 3 } = {}) {
   validatePortableScene(scene)
   const context = canvas.getContext('2d')
   const dpr = Math.min(maxDpr, canvas.ownerDocument.defaultView.devicePixelRatio || 1)
   canvas.width = Math.max(1, Math.round(scene.width * dpr))
   canvas.height = Math.max(1, Math.round(scene.height * dpr))
   context.setTransform(dpr, 0, 0, dpr, 0, 0)
+  context.fontKerning = 'normal'
+  context.textRendering = 'optimizeLegibility'
   context.clearRect(0, 0, scene.width, scene.height)
   context.fillStyle = color(scene.background, '#0b1020')
   context.fillRect(0, 0, scene.width, scene.height)

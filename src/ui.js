@@ -1,7 +1,7 @@
 /** RoomHash DOM rendering and workspace controls. */
 
 import { normalizeMimeType } from './message.js'
-import { loadAppstoreCatalog } from './appstore.js'
+import { loadAppstoreCatalog, localizeAppMetadata } from './appstore.js'
 import { applyDocumentTranslations, getLanguage, getLanguagePreference, localizeError, statusText, t } from './i18n.js'
 
 const DEMO_DISMISSED_KEY = 'roomhash:demo-notification-dismissed'
@@ -257,17 +257,18 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     if (!els.appstoreList) return
     els.appstoreList.replaceChildren()
     for (const app of appstoreApps) {
+      const metadata = localizeAppMetadata(app, getLanguage())
       const card = doc.createElement('article')
       card.className = 'appstore-card'
       const mark = doc.createElement('span')
       mark.className = 'appstore-card-mark'
-      mark.textContent = app.runtime === 'wasm' ? 'WASM' : 'WEB'
+        mark.textContent = 'R'
       const copy = doc.createElement('span')
       copy.className = 'appstore-card-copy'
       const name = doc.createElement('strong')
-      name.textContent = app.name
+      name.textContent = metadata.name || app.name
       const summary = doc.createElement('span')
-      summary.textContent = app.summary
+      summary.textContent = metadata.summary || app.summary
       const runtime = doc.createElement('small')
       runtime.textContent = t(app.runtime === 'wasm' ? 'appstore.wasm' : 'appstore.web')
       copy.append(name, summary, runtime)

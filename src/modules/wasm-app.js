@@ -1,4 +1,5 @@
-import { localizeError, t } from '../i18n.js'
+import { localizeAppMetadata } from '../appstore.js'
+import { getLanguage, localizeError, t } from '../i18n.js'
 import { renderWasmFormView } from './wasm-form-ui.js'
 import { paintPortableScene } from './portable-surface.js'
 
@@ -8,6 +9,10 @@ export const SUPPORTED_WASM_ABIS = new Set(['roomhash-pixel-grid-v1', 'roomhash-
 
 const MAX_WASM_BYTES = 10 * 1024 * 1024
 const TRUST_PREFIX = 'roomhash:wasm-trust:'
+
+function appDisplayName(manifest, fallback = '') {
+  return localizeAppMetadata(manifest, getLanguage()).name || fallback || manifest?.id || 'WASM App'
+}
 
 function hex(bytes) {
   return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -50,7 +55,7 @@ function appendIdentity(identity, doc, label, value, className = '') {
 }
 
 function validManifest(manifest) {
-  return Boolean(
+  const base = Boolean(
     manifest &&
     manifest.schema === 'roomhash.app/v1' &&
     manifest.runtime === 'wasm' &&
@@ -58,6 +63,25 @@ function validManifest(manifest) {
     typeof manifest.entry === 'string' &&
     typeof manifest.sha256 === 'string' &&
     SUPPORTED_WASM_ABIS.has(manifest.abi)
+  )
+  return base && (manifest.abi !== 'roomhash-pixel-grid-v1' || validNumericGridContract(manifest.legacyNumericGrid))
+}
+
+const NUMERIC_GRID_EXPORT_KEYS = [
+  'width', 'height', 'framebufferPointer', 'framebufferLength', 'initialize',
+  'write', 'merge', 'recordCount', 'recordActor', 'recordValue', 'recordClock'
+]
+
+function validNumericGridContract(contract) {
+  if (contract?.schema !== 'roomhash.numeric-grid/v1') return false
+  if (!Number.isInteger(contract.columns) || contract.columns < 1 || contract.columns > 256) return false
+  if (!Number.isInteger(contract.rows) || contract.rows < 1 || contract.rows > 256) return false
+  if (!contract.exports || NUMERIC_GRID_EXPORT_KEYS.some((key) => !/^rh_[a-z0-9_]{1,63}$/.test(contract.exports[key] || ''))) return false
+  if (!Array.isArray(contract.controls) || contract.controls.length < 1 || contract.controls.length > 16) return false
+  return contract.controls.every((control) =>
+    Number.isInteger(control?.value) && control.value >= 0 && control.value <= 255 &&
+    /^#[a-f0-9]{6}$/i.test(control.color || '') &&
+    typeof control.label === 'string' && control.label.length >= 1 && control.label.length <= 48
   )
 }
 
@@ -86,7 +110,7 @@ function permissionPrompt(doc, manifest) {
   if (trusted) return Promise.resolve(true)
 
   if (!doc.createElement('dialog').showModal) {
-    return Promise.resolve(doc.defaultView.confirm(t('wasm.permissionTitle', { name: manifest.name || manifest.id })))
+    return Promise.resolve(doc.defaultView.confirm(t('wasm.permissionTitle', { name: appDisplayName(manifest) })))
   }
 
   return new Promise((resolve) => {
@@ -95,7 +119,7 @@ function permissionPrompt(doc, manifest) {
     const body = doc.createElement('div')
     body.className = 'wasm-permission-body'
     const title = doc.createElement('h3')
-    title.textContent = t('wasm.permissionTitle', { name: manifest.name || manifest.id })
+    title.textContent = t('wasm.permissionTitle', { name: appDisplayName(manifest) })
     const source = doc.createElement('p')
     source.textContent = t('wasm.permissionSource')
     const fingerprint = doc.createElement('p')
@@ -202,7 +226,7 @@ export class WasmAppController {
     const toolbar = doc.createElement('div')
     toolbar.className = 'wasm-game-toolbar portable-host-toolbar'
     const name = doc.createElement('strong')
-    name.textContent = manifest.name || manifest.id
+    name.textContent = appDisplayName(manifest)
     const fullscreen = doc.createElement('button')
     fullscreen.type = 'button'
     fullscreen.textContent = t('wasm.fullscreen')
@@ -263,9 +287,11 @@ export class WasmAppController {
     const dispatch = (input) => worker.postMessage({ type: 'surface-input', input })
     const viewport = () => {
       const rect = stage.getBoundingClientRect()
-      if (rect.width > 0 && rect.height > 0) dispatch({
-        kind: 'viewport', width: rect.width, height: rect.height,
-        dpr: Math.min(2, doc.defaultView.devicePixelRatio || 1), fullscreen: fullscreenElement() === shell
+      const width = Math.max(0, Math.floor(stage.clientWidth || rect.width))
+      const height = Math.max(0, Math.floor(stage.clientHeight || rect.height))
+      if (width > 0 && height > 0) dispatch({
+        kind: 'viewport', width, height,
+        dpr: Math.min(3, doc.defaultView.devicePixelRatio || 1), fullscreen: fullscreenElement() === shell
       })
     }
     const setFullscreen = async (enabled) => {
@@ -298,6 +324,50 @@ export class WasmAppController {
       textInput = input
     }
     const hostResult = (requestId, ok, value, error = '') => dispatch({ kind: 'host-result', requestId, ok, value, error })
+    const saveImage = async (effect) => {
+      if (!manifest.permissions?.includes('file.download')) throw new Error('file.download permission is required')
+      if (!currentScene) throw new Error('no scene is available to export')
+      const requested = effect.region && typeof effect.region === 'object' ? effect.region : {}
+      const x = Math.max(0, Math.min(currentScene.width, Number(requested.x) || 0))
+      const y = Math.max(0, Math.min(currentScene.height, Number(requested.y) || 0))
+      const width = Math.max(1, Math.min(currentScene.width - x, Number(requested.width) || currentScene.width - x))
+      const height = Math.max(1, Math.min(currentScene.height - y, Number(requested.height) || currentScene.height - y))
+      const sourceScaleX = canvas.width / currentScene.width
+      const sourceScaleY = canvas.height / currentScene.height
+      const exportScale = Math.max(1, Math.min(2, sourceScaleX, sourceScaleY, Math.sqrt(16_000_000 / (width * height))))
+      const output = doc.createElement('canvas')
+      output.width = Math.max(1, Math.round(width * exportScale))
+      output.height = Math.max(1, Math.round(height * exportScale))
+      const context = output.getContext('2d')
+      const background = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(String(effect.background || ''))
+        ? String(effect.background)
+        : '#ffffff'
+      context.fillStyle = background
+      context.fillRect(0, 0, output.width, output.height)
+      context.drawImage(
+        canvas,
+        x * sourceScaleX,
+        y * sourceScaleY,
+        width * sourceScaleX,
+        height * sourceScaleY,
+        0,
+        0,
+        output.width,
+        output.height
+      )
+      const blob = await new Promise((resolve, reject) => output.toBlob((value) => value ? resolve(value) : reject(new Error('image encoding failed')), 'image/png'))
+      const url = URL.createObjectURL(blob)
+      objectUrls.add(url)
+      const link = doc.createElement('a')
+      const candidate = String(effect.filename || 'roomhash-app.png').split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 120)
+      link.download = candidate.toLowerCase().endsWith('.png') ? candidate : `${candidate || 'roomhash-app'}.png`
+      link.href = url
+      link.click()
+      setTimeout(() => {
+        URL.revokeObjectURL(url)
+        objectUrls.delete(url)
+      }, 0)
+    }
     const handleEffect = async (effect) => {
       if (!effect || typeof effect.type !== 'string') return
       const requestId = String(effect.requestId || '')
@@ -305,7 +375,13 @@ export class WasmAppController {
         if (effect.type === 'fullscreen') await setFullscreen(Boolean(effect.enabled))
         else if (effect.type === 'announce') { status.textContent = String(effect.text || ''); return }
         else if (effect.type === 'text-input') { openTextInput(effect); return }
+        else if (effect.type === 'random-bytes') {
+          const length = Math.max(1, Math.min(64, Number(effect.length) || 32))
+          hostResult(requestId, true, hex(crypto.getRandomValues(new Uint8Array(length))))
+          return
+        }
         else if (effect.type === 'clipboard-write') await doc.defaultView.navigator.clipboard.writeText(String(effect.text || ''))
+        else if (effect.type === 'save-image') await saveImage(effect)
         else if (effect.type === 'pick-files') {
           const input = doc.createElement('input')
           input.type = 'file'
@@ -419,7 +495,7 @@ export class WasmAppController {
     const toolbar = doc.createElement('div')
     toolbar.className = 'wasm-game-toolbar'
     const name = doc.createElement('strong')
-    name.textContent = manifest.name || manifest.id
+    name.textContent = appDisplayName(manifest)
     const stop = doc.createElement('button')
     stop.type = 'button'
     stop.textContent = t('wasm.stop')
@@ -569,7 +645,7 @@ export class WasmAppController {
     const toolbar = doc.createElement('div')
     toolbar.className = 'wasm-game-toolbar'
     const name = doc.createElement('strong')
-    name.textContent = manifest.name || manifest.id
+    name.textContent = appDisplayName(manifest)
     const fullscreen = doc.createElement('button')
     fullscreen.className = 'wasm-fullscreen-action'
     fullscreen.type = 'button'
@@ -580,39 +656,20 @@ export class WasmAppController {
     toolbar.append(name, fullscreen, stop)
     const palette = doc.createElement('div')
     palette.className = 'wasm-game-palette'
-    const colors = ['#f5b84b', '#51d7b7', '#ff7b72', '#74b9ff']
-    const isWhiteboard = manifest.ui?.mode === 'whiteboard'
-    let flower = 1
-    colors.forEach((color, index) => {
+    const legacyNumericGrid = manifest.legacyNumericGrid
+    let selectedValue = legacyNumericGrid.controls[0].value
+    legacyNumericGrid.controls.forEach((control, index) => {
       const button = doc.createElement('button')
-      button.className = `wasm-flower-choice${index === 0 ? ' active' : ''}`
-      button.style.background = color
-      button.title = t('wasm.flower', { number: index + 1 })
+      button.className = `wasm-value-choice${index === 0 ? ' active' : ''}`
+      button.style.background = control.color
+      button.title = control.label
+      button.setAttribute('aria-label', control.label)
       button.addEventListener('click', () => {
-        flower = index + 1
+        selectedValue = control.value
         for (const choice of palette.children) choice.classList.toggle('active', choice === button)
       })
       palette.appendChild(button)
     })
-    if (isWhiteboard) {
-      const eraser = doc.createElement('button')
-      eraser.className = 'wasm-tool-choice'
-      eraser.type = 'button'
-      eraser.textContent = t('wasm.eraser')
-      eraser.addEventListener('click', () => {
-        flower = 0
-        for (const choice of palette.children) choice.classList.toggle('active', choice === eraser)
-      })
-      const clear = doc.createElement('button')
-      clear.className = 'wasm-tool-choice danger-action'
-      clear.type = 'button'
-      clear.textContent = t('wasm.clearBoard')
-      clear.addEventListener('click', () => {
-        if (!doc.defaultView.confirm(t('wasm.confirmClear'))) return
-        worker.postMessage({ type: 'input', x: 0, y: 0, flower: 255, actor, phase: 'start' })
-      })
-      palette.append(eraser, clear)
-    }
     const canvas = doc.createElement('canvas')
     canvas.className = 'wasm-game-canvas'
     shell.append(toolbar, palette, canvas)
@@ -646,9 +703,13 @@ export class WasmAppController {
     const listeners = this.listeners.get(key) || new Set()
     const receive = (event) => {
       if (!event || typeof event !== 'object') return
-      if (event.kind === 'plant') worker.postMessage({ type: 'remote', event })
+      if (event.kind === 'legacy-operation' && Array.isArray(event.values)) {
+        worker.postMessage({ type: 'legacy-remote', values: event.values })
+      }
       if (event.kind === 'state-request') worker.postMessage({ type: 'snapshot-request' })
-      if (event.kind === 'snapshot' && Array.isArray(event.cells)) worker.postMessage({ type: 'snapshot', cells: event.cells })
+      if (event.kind === 'legacy-snapshot' && Array.isArray(event.records)) {
+        worker.postMessage({ type: 'legacy-snapshot', records: event.records })
+      }
     }
     listeners.add(receive)
     this.listeners.set(key, listeners)
@@ -674,7 +735,7 @@ export class WasmAppController {
       } else if (data.type === 'event') {
         send(data.event)
       } else if (data.type === 'snapshot') {
-        send({ kind: 'snapshot', cells: data.cells })
+        send({ kind: 'legacy-snapshot', records: data.records })
       } else if (data.type === 'pong') {
         lastPong = Date.now()
       } else if (data.type === 'error') {
@@ -696,38 +757,17 @@ export class WasmAppController {
       doc.removeEventListener('webkitfullscreenchange', onFullscreenChange)
       notifyStopped()
     })
-    const postPointer = (event, phase) => {
+    const postPointer = (event) => {
       const rect = canvas.getBoundingClientRect()
       worker.postMessage({
-        type: 'input',
+        type: 'legacy-input',
         x: Math.floor((event.clientX - rect.left) * canvas.width / rect.width),
         y: Math.floor((event.clientY - rect.top) * canvas.height / rect.height),
-        flower,
-        actor,
-        phase
+        value: selectedValue,
+        actor
       })
     }
-    if (isWhiteboard) {
-      let activePointer = null
-      canvas.addEventListener('pointerdown', (event) => {
-        activePointer = event.pointerId
-        canvas.setPointerCapture?.(event.pointerId)
-        postPointer(event, 'start')
-      })
-      canvas.addEventListener('pointermove', (event) => {
-        if (activePointer !== event.pointerId) return
-        for (const point of event.getCoalescedEvents?.() || [event]) postPointer(point, 'move')
-      })
-      const endStroke = (event) => {
-        if (activePointer !== event.pointerId) return
-        activePointer = null
-        worker.postMessage({ type: 'end-stroke', actor })
-      }
-      canvas.addEventListener('pointerup', endStroke)
-      canvas.addEventListener('pointercancel', endStroke)
-    } else {
-      canvas.addEventListener('pointerdown', (event) => postPointer(event, 'start'))
-    }
+    canvas.addEventListener('pointerdown', postPointer)
 
     const timer = setInterval(() => {
       if (Date.now() - lastPong > 5000) {
@@ -754,7 +794,7 @@ export class WasmAppController {
       mount.replaceChildren()
       notifyStopped()
     })
-    worker.postMessage({ type: 'load', bytes }, [bytes])
+    worker.postMessage({ type: 'load', bytes, legacyNumericGrid }, [bytes])
     return true
   }
 }
@@ -772,7 +812,7 @@ export function createWasmAppModule(controller) {
       heading.className = 'wasm-app-heading'
       const title = doc.createElement('strong')
       title.className = 'wasm-app-title'
-      title.textContent = manifest.name || payload.title || 'WASM App'
+      title.textContent = appDisplayName(manifest, payload.title)
       heading.appendChild(title)
       if (manifest.version) {
         const version = doc.createElement('span')

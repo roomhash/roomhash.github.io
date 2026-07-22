@@ -15,16 +15,12 @@ export function normalizeMagnetUri(value) {
   )
 }
 
-async function resolveTorrentIdentifier(magnet) {
-  try {
-    const exactSource = new URL(magnet).searchParams.get('xs')
-    if (!exactSource) return magnet
-    const response = await fetch(exactSource)
-    if (!response.ok) return magnet
-    return new Uint8Array(await response.arrayBuffer())
-  } catch {
-    return magnet
-  }
+function resolveTorrentIdentifier(magnet) {
+  // Keep the full magnet so WebTorrent can validate `xs` metadata against
+  // `xt` and merge the card's current `ws` with any web seeds embedded in the
+  // torrent file. Returning the fetched `xs` bytes here would discard `ws`
+  // and could also accept metadata for a different info hash.
+  return magnet
 }
 
 export class TorrentMetadataTimeoutError extends Error {

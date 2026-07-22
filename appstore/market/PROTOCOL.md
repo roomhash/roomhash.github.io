@@ -39,15 +39,22 @@ file 字段由宿主 seed 后变为 `{name,mime,size,sha256,magnet,webSeed}`。W
 
 媒体字节不进入事件。接收宿主从 torrent 或 web seed 获取后应再次核验 SHA-256。
 
-## ABI v2 调度
+## Portable Surface ABI v3 调度
 
 - init：`{nickname,peerId,identitySeed,channelId,instanceId,savedState}`；
-- action：`publish|update|withdraw|buy`，附 `values` 与 64 hex random；
+- 通用 `text`、`pointer`、`wheel`、`key` 输入由 WASM 自己解释为表单、导航、
+  搜索、选择、更新、撤下或购买动作；
+- 需要发布/更新/购买时，WASM 请求 `random-bytes` 通用 effect，宿主返回 32 字节
+  密码学随机值，后续密钥派生、加密与签名仍全部在 WASM 内完成；
+- 文件选择通过 `pick-files` 返回已做种的内容寻址描述符，媒体通过通用
+  `load-media` / `open-media` effect 使用；
 - remote：单个公开 MarketEvent；
 - state-request：返回公开 snapshot；
 - snapshot：验证并合并公开 snapshot。
 
-输出统一为 `{view,events,snapshot,persist}`。persist 与 snapshot 都只保存公开密文状态；卖家每次渲染收件箱时在 WASM 内重新解密。
+输出统一为 `{scene,effects,events,snapshot,persist}`。scene 是由 Rust 生成的
+Canvas display list，不包含 HTML 表单；persist 与 snapshot 都只保存公开密文
+状态，卖家每次绘制收件箱时在 WASM 内重新解密。
 
 ## 明确排除
 

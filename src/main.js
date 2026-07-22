@@ -18,7 +18,7 @@ import { createMeshSession } from './network/mesh-session.js'
 import { RelayLimiter } from './network/gossip.js'
 import { RuntimeCapabilities } from './network/runtime-capabilities.js'
 import { DEMO_PIXEL_GARDEN, DEMO_VIDEO } from './demo-content.js'
-import { appstoreArtifactUrl } from './appstore.js'
+import { appstoreArtifactUrl, appstoreRuntimeMagnet } from './appstore.js'
 import {
   appendMessage,
   loadAutoAddChannels,
@@ -566,10 +566,10 @@ async function boot() {
       if (!response.ok) throw new Error(`app manifest request failed (${response.status})`)
       const manifest = await response.json()
       if (manifest.id !== app.id || manifest.entry !== app.entry || manifest.runtime !== 'wasm') {
-        throw new Error('AppStore manifest does not match its catalog entry')
+        throw new Error('Roomlet manifest does not match its catalog entry')
       }
       await session.sendModule(WASM_APP_MODULE, {
-        magnet: app.magnet,
+        magnet: appstoreRuntimeMagnet(app),
         title: `${app.name} - RoomHash WASM app`,
         manifest,
         files: [{ name: app.entry, size: app.entrySize, mime: 'application/wasm' }],

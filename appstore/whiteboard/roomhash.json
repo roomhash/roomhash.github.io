@@ -2,13 +2,25 @@
   "schema": "roomhash.app/v1",
   "id": "org.roomhash.whiteboard",
   "name": "Shared Whiteboard",
-  "version": "2.0.0",
+  "description": "Sketch together on a responsive meeting whiteboard with P2P sync, undo, erase, and PNG export.",
+  "i18n": {
+    "en": {
+      "name": "Shared Whiteboard",
+      "description": "Sketch together on a responsive meeting whiteboard with P2P sync, undo, erase, PNG export, and late-join recovery."
+    },
+    "zh-CN": {
+      "name": "共享白板",
+      "description": "适合会议协作的响应式共享白板，支持 P2P 笔迹同步、撤销、擦除、图片保存与后来者状态恢复。"
+    }
+  },
+  "version": "2.1.0",
   "runtime": "wasm",
   "abi": "portable-surface-v1",
   "entry": "whiteboard.wasm",
-  "sha256": "9d627b58597049e65ffdc5492c15a4afe33e286dffe3915b48ab3c2a84adfa56",
+  "sha256": "e64fef3ba7ff28d73d880a5299b3343a99c4ed030574a49c0e8f1c7dfd993e53",
   "permissions": [
     "channel.messages",
-    "storage:256kb"
+    "storage:256kb",
+    "file.download"
   ]
 }

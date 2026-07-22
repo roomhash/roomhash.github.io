@@ -1,16 +1,20 @@
-# RoomHash WASM App v1
+# RoomHash Roomlet / WASM App v1
+
+Roomlet means “Room Applet”; its Chinese product name is “聊应用”. User-facing
+interfaces use Roomlet / 聊应用, while WASM and ABI terminology stays in this
+developer specification.
 
 RoomHash treats an ordinary `.wasm` attachment as a downloadable torrent. It is
 executable only when a `roomhash.json` manifest declares a supported ABI and the
 downloaded bytes match the manifest SHA-256 fingerprint.
 
-## AppStore admission rule
+## Roomlet catalog admission rule
 
-RoomHash AppStore is WASM-only. Every catalog entry must use `runtime: "wasm"`,
+The Roomlet catalog is WASM-only. Every catalog entry must use `runtime: "wasm"`,
 provide a `roomhash.app/v1` manifest, target a supported embedded ABI, and keep
 its application state and business logic inside WASM. Standalone web bundles,
 external application links, and iframe-based applications are not eligible for
-the AppStore. RoomHash acts as the bounded host and transport layer; it is not a
+the Roomlet catalog. RoomHash acts as the bounded host and transport layer; it is not a
 place to move an application's business logic into page JavaScript.
 
 App releases must also be WebUI-independent. App-specific HTML/CSS/JavaScript,
@@ -27,7 +31,12 @@ same `.wasm` must run in a third-party conforming host without recompilation.
 {
   "schema": "roomhash.app/v1",
   "id": "org.roomhash.pixel-garden",
-  "name": "Pixel Garden",
+  "name": "Shared Garden",
+  "description": "Plant a shared pixel garden with everyone in the channel.",
+  "i18n": {
+    "en": { "name": "Shared Garden", "description": "Plant a shared pixel garden with everyone in the channel." },
+    "zh-CN": { "name": "共享花园", "description": "和频道成员一起种下共享花园。" }
+  },
   "version": "1.0.0",
   "runtime": "wasm",
   "abi": "roomhash-pixel-grid-v1",
@@ -40,6 +49,36 @@ same `.wasm` must run in a third-party conforming host without recompilation.
 To publish a local app, select `roomhash.json` and its WASM entry together. An
 invalid or unsupported declaration falls back to an ordinary downloadable
 attachment.
+
+Catalog metadata and manifests must provide both `i18n.en` and `i18n.zh-CN`.
+The receiving client selects the localized name and description from its own
+language setting; canonical top-level metadata remains the English fallback.
+
+## `portable-surface-v1`
+
+New interactive apps use ABI version 3 and own their responsive scene, hit
+testing, drafts, validation, domain events, and merge rules inside WASM. The
+generic host paints validated canvas operations and passes pointer, keyboard,
+viewport, remote-event, snapshot, and host-result inputs back to the module.
+
+Controlled effects include fullscreen, text input, random bytes, clipboard
+write, file picking, content-addressed media loading, and PNG scene export. An
+app with `file.download` permission may request an image crop without accessing
+the DOM or filesystem directly:
+
+```json
+{
+  "type": "save-image",
+  "requestId": "export-1",
+  "filename": "shared-board.png",
+  "background": "#ffffff",
+  "region": { "x": 80, "y": 80, "width": 800, "height": 520 }
+}
+```
+
+The host validates and crops the current portable scene, downloads a PNG, then
+returns `{ "kind": "host-result", "requestId": "export-1", "ok": true }`.
+No application-specific behavior belongs in the host adapter.
 
 ## `roomhash-pixel-grid-v1`
 

@@ -1,16 +1,28 @@
 {
   "schema": "roomhash.app/v1",
   "id": "roomhash-voting",
-  "name": "分布式公开投票",
-  "version": "0.2.0",
+  "name": "Shared Polls",
+  "description": "Create auditable public polls, deduplicate votes by user hash, and count what this node has collected.",
+  "i18n": {
+    "en": {
+      "name": "Shared Polls",
+      "description": "Create auditable public polls, deduplicate votes by user hash, and count what this node has collected.",
+      "notice": "Results are local collection views, not globally consistent totals. Different peers may show different counts until their event sets converge."
+    },
+    "zh-CN": {
+      "name": "共享投票",
+      "description": "创建可公开审计的投票，按用户 Hash 排重，并汇总当前节点实际收集到的票据。",
+      "notice": "结果是当前节点的本地收集视图，并非全局强一致统计；在事件集合收敛前，不同参与者看到的票数可能不同。"
+    }
+  },
+  "version": "1.1.0",
   "runtime": "wasm",
-  "abi": "roomhash-form-v1",
+  "abi": "portable-surface-v1",
   "entry": "voting.wasm",
-  "sha256": "69d2f066286cc47ba0ffb3e6cd3418009ca98f8150bcfe252450034b58050f28",
+  "sha256": "3110a4558f59d1b143ed33cfa5845afa591b200bd495e4716b14cf934df0766d",
   "permissions": [
-    "room identity context",
-    "public room events",
-    "local state persistence"
+    "channel.messages",
+    "storage:512kb"
   ],
-  "notice": "不同节点看到的统计结果可能不同，取决于各自实际收集到的数据；结果不是全局强一致视图。"
+  "notice": "Results are local collection views, not globally consistent totals. Different peers may show different counts until their event sets converge."
 }
