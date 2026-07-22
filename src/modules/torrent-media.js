@@ -5,6 +5,8 @@ import { TorrentSeedCache } from '../torrent-cache.js'
 export const TORRENT_MEDIA_MODULE = 'torrent.media'
 const TEXT_PREVIEW_LIMIT = 5 * 1024 * 1024
 const METADATA_TIMEOUT_MS = 20_000
+const TRACKER_PEER_OFFERS = 1
+const TRACKER_SOCKET_MAX_LISTENERS = 64
 
 export function normalizeMagnetUri(value) {
   return String(value || '').trim().replace(
@@ -84,6 +86,7 @@ export class TorrentMediaController {
     this.cache = cache
     this.cacheWrites = new Map()
     this.watchedTorrents = new WeakSet()
+    this.torrentObservers = new WeakMap()
     this.localSeeds = new Map()
     this.seedListeners = new Set()
   }
@@ -100,7 +103,12 @@ export class TorrentMediaController {
 
   async _createClient() {
     const { default: WebTorrent } = await import('webtorrent/dist/webtorrent.min.js')
-    this.client = new WebTorrent()
+    this.client = new WebTorrent({
+      tracker: {
+        getAnnounceOpts: () => ({ numwant: TRACKER_PEER_OFFERS })
+      }
+    })
+    this.client.setMaxListeners?.(TRACKER_SOCKET_MAX_LISTENERS)
     this.client.on('error', (error) => console.error('WebTorrent client error', error))
 
     if ('serviceWorker' in navigator && window.isSecureContext) {
@@ -142,6 +150,7 @@ export class TorrentMediaController {
 
   _restoreCachedRecord(record) {
     const torrent = this.client.add(new Uint8Array(record.torrentFile), { announce: this.trackers })
+    this._configureTrackerSockets(torrent)
     const restore = () => {
       try {
         const cachedByPath = new Map(record.files.map((file) => [file.path || file.name, file]))
@@ -178,6 +187,7 @@ export class TorrentMediaController {
       announce: this.trackers,
       deselect: true
     })
+    this._configureTrackerSockets(torrent)
     onTorrent?.(torrent)
     this._watchForCompletion(torrent)
     return this._waitForMetadata(torrent)
@@ -191,6 +201,7 @@ export class TorrentMediaController {
       const torrent = client.seed(input, { announce: this.trackers }, resolve)
       torrent.once('error', reject)
     })
+    this._configureTrackerSockets(torrent)
     torrent.roomHashCached = await this._cacheTorrent(torrent)
     this._registerTorrent(torrent, torrent.roomHashCached)
     this._watchForCompletion(torrent)
@@ -230,6 +241,17 @@ export class TorrentMediaController {
     })
     if (torrent.done) cache()
     else torrent.once('done', cache)
+  }
+
+  _configureTrackerSockets(torrent) {
+    const configure = () => {
+      const trackers = torrent?.discovery?.tracker?._trackers || []
+      for (const tracker of trackers) {
+        tracker.socket?.setMaxListeners?.(TRACKER_SOCKET_MAX_LISTENERS)
+      }
+    }
+    configure()
+    queueMicrotask(configure)
   }
 
   async _cacheTorrent(torrent) {
@@ -320,6 +342,31 @@ export class TorrentMediaController {
     this.localSeeds.delete(infoHash)
     this._emitSeedsChanged()
     return this.getLocalSeedsSnapshot()
+  }
+
+  observeTorrent(torrent, listener) {
+    if (!torrent || typeof listener !== 'function') return () => {}
+    let observer = this.torrentObservers.get(torrent)
+    if (!observer) {
+      const listeners = new Set()
+      const handlers = new Map()
+      for (const event of ['wire', 'noPeers', 'trackerWarning', 'trackerError', 'download', 'done']) {
+        const handler = () => {
+          for (const current of listeners) current(event, torrent)
+        }
+        handlers.set(event, handler)
+        torrent.on(event, handler)
+      }
+      observer = { listeners, handlers }
+      this.torrentObservers.set(torrent, observer)
+    }
+    observer.listeners.add(listener)
+    return () => {
+      observer.listeners.delete(listener)
+      if (observer.listeners.size) return
+      for (const [event, handler] of observer.handlers) torrent.off(event, handler)
+      this.torrentObservers.delete(torrent)
+    }
   }
 
   preload(torrent) {
@@ -476,6 +523,8 @@ export function createTorrentMediaModule(controller) {
       let observedTorrent = null
       let attemptNumber = 0
       let preloadAction = 'loading'
+      let updateProgress = () => {}
+      let releaseTorrentObserver = () => {}
 
       const setConnection = (key) => {
         connectionState.textContent = t('torrent.connection', { state: t(key) })
@@ -487,22 +536,33 @@ export function createTorrentMediaModule(controller) {
         currentTorrent = torrent
         updateNetwork()
         if (observedTorrent === torrent) return
+        releaseTorrentObserver()
         observedTorrent = torrent
-        torrent.on('wire', () => {
+        releaseTorrentObserver = controller.observeTorrent(torrent, (event) => {
           updateNetwork()
-          setConnection('torrent.connected')
+          updateProgress()
+          if (torrent.done) {
+            setConnection('torrent.seeding')
+            preloadButton.hidden = true
+            return
+          }
+          if (event === 'wire') setConnection('torrent.connected')
+          if (event === 'noPeers') setConnection('torrent.noPeers')
+          if (event === 'trackerWarning') setConnection('torrent.trackerWarning')
+          if (event === 'trackerError') setConnection('torrent.trackerError')
+          if (event === 'done') {
+            setConnection('torrent.seeding')
+            preloadButton.hidden = true
+          }
         })
-        torrent.on('noPeers', () => {
-          updateNetwork()
-          setConnection('torrent.noPeers')
-        })
-        torrent.on('trackerWarning', () => setConnection('torrent.trackerWarning'))
-        torrent.on('trackerError', () => setConnection('torrent.trackerError'))
-        torrent.on('download', updateNetwork)
-        torrent.on('done', () => {
-          updateNetwork()
-          setConnection('torrent.seeding')
-        })
+      }
+
+      card.roomHashDispose = () => {
+        attemptNumber += 1
+        releaseTorrentObserver()
+        releaseTorrentObserver = () => {}
+        observedTorrent = null
+        currentTorrent = null
       }
 
       copyButton.addEventListener('click', async () => {
@@ -524,17 +584,15 @@ export function createTorrentMediaModule(controller) {
         preloadButton.disabled = false
         preloadButton.textContent = t('torrent.preload')
         setConnection(torrent.done ? 'torrent.seeding' : 'torrent.metadataReady')
-        const update = () => {
+        updateProgress = () => {
           status.textContent = t('torrent.progress', { progress: Math.round(torrent.progress * 100), peers: torrent.numPeers, speed: formatBytes(torrent.downloadSpeed) })
           updateNetwork()
+          if (torrent.done) {
+            setConnection('torrent.seeding')
+            preloadButton.hidden = true
+          }
         }
-        update()
-        torrent.on('download', update)
-        torrent.on('wire', update)
-        torrent.on('done', () => {
-          update()
-          preloadButton.hidden = true
-        })
+        updateProgress()
 
         files.replaceChildren()
         for (const file of torrent.files) {
@@ -555,7 +613,7 @@ export function createTorrentMediaModule(controller) {
           files.appendChild(button)
         }
 
-        if (controller.autoPreload) {
+        if (controller.autoPreload && !torrent.done) {
           controller.preload(torrent)
           preloadAction = 'preloading'
           preloadButton.disabled = true

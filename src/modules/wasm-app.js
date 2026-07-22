@@ -161,7 +161,7 @@ export class WasmAppController {
     return true
   }
 
-  async launch(payload, mount, doc) {
+  async launch(payload, mount, doc, { onStop } = {}) {
     const manifest = payload.manifest
     if (!validManifest(manifest)) throw new Error(`unsupported ABI: ${manifest?.abi || 'unknown'}`)
     const torrent = await this.torrentMedia.add(payload.magnet)
@@ -249,6 +249,12 @@ export class WasmAppController {
     const actor = crypto.getRandomValues(new Uint32Array(1))[0] || 1
     let lastPong = Date.now()
     let heartbeat = 0
+    let stopped = false
+    const notifyStopped = () => {
+      if (stopped) return
+      stopped = true
+      onStop?.()
+    }
     const send = (event) => this.sendEvent(channelId, { instanceId, appHash: digest, event }).catch(() => {})
     worker.addEventListener('message', ({ data }) => {
       if (data.type === 'ready') {
@@ -266,10 +272,12 @@ export class WasmAppController {
         lastPong = Date.now()
       } else if (data.type === 'error') {
         mount.textContent = t('wasm.invalid', { message: data.message })
+        notifyStopped()
       }
     })
     worker.addEventListener('error', (error) => {
       mount.textContent = t('wasm.invalid', { message: localizeError(error) })
+      notifyStopped()
     })
     canvas.addEventListener('pointerdown', (event) => {
       const rect = canvas.getBoundingClientRect()
@@ -289,6 +297,7 @@ export class WasmAppController {
         doc.removeEventListener('fullscreenchange', onFullscreenChange)
         doc.removeEventListener('webkitfullscreenchange', onFullscreenChange)
         mount.textContent = t('wasm.invalid', { message: 'execution timeout' })
+        notifyStopped()
         return
       }
       worker.postMessage({ type: 'ping' })
@@ -304,6 +313,7 @@ export class WasmAppController {
         exit?.call(doc)
       }
       mount.replaceChildren()
+      notifyStopped()
     })
     worker.postMessage({ type: 'load', bytes }, [bytes])
     return true
@@ -365,7 +375,12 @@ export function createWasmAppModule(controller) {
         run.disabled = true
         status.textContent = t('wasm.downloading')
         try {
-          const started = await controller.launch(payload, runtime, doc)
+          const started = await controller.launch(payload, runtime, doc, {
+            onStop: () => {
+              run.disabled = false
+              status.textContent = ''
+            }
+          })
           status.textContent = started ? t('wasm.running') : ''
           if (!started) run.disabled = false
         } catch (error) {

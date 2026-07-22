@@ -101,6 +101,13 @@ export function appendMessageToList(listEl, msg, moduleRegistry = null) {
   listEl.scrollTop = listEl.scrollHeight
 }
 
+function disposeMessageNode(node) {
+  if (!node) return
+  for (const element of [node, ...node.querySelectorAll('*')]) {
+    if (typeof element.roomHashDispose === 'function') element.roomHashDispose()
+  }
+}
+
 function setDialogOpen(dialog, open) {
   if (!dialog) return
   if (open && !dialog.open) dialog.showModal()
@@ -558,6 +565,7 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
       appendMessageToList(els.messages, message, moduleRegistry)
     },
     clearMessages() {
+      for (const node of els.messages?.children || []) disposeMessageNode(node)
       els.messages?.replaceChildren()
     },
     translate() {
