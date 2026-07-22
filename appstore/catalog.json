@@ -1,0 +1,53 @@
+{
+  "schema": "roomhash.appstore/v1",
+  "apps": [
+    {
+      "id": "org.roomhash.pixel-garden",
+      "name": "Pixel Garden",
+      "summary": "在频道里共同种下一座会生长的像素花园。",
+      "runtime": "wasm",
+      "path": "/appstore/pixel-garden/",
+      "manifest": "roomhash.json",
+      "entry": "pixel_garden.wasm",
+      "torrent": "pixel_garden.torrent",
+      "infoHash": "203d5be59b06376f0b1ef18e2360fc0e33a07cd4",
+      "webSeed": "https://roomhash.github.io/appstore/pixel-garden/pixel_garden.wasm",
+      "entrySize": 1077,
+      "magnet": "magnet:?xt=urn:btih:203d5be59b06376f0b1ef18e2360fc0e33a07cd4&dn=pixel_garden.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fpixel-garden%2Fpixel_garden.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fpixel-garden%2Fpixel_garden.torrent"
+    },
+    {
+      "id": "org.roomhash.whiteboard",
+      "name": "Shared Whiteboard",
+      "summary": "在频道里共享一块会自动合并笔迹的像素白板。",
+      "runtime": "wasm",
+      "path": "/appstore/whiteboard/",
+      "manifest": "roomhash.json",
+      "entry": "whiteboard.wasm",
+      "torrent": "whiteboard.torrent",
+      "infoHash": "51a6c729aa50f712a441f01fdbb15a081351e67f",
+      "webSeed": "https://roomhash.github.io/appstore/whiteboard/whiteboard.wasm",
+      "entrySize": 1172,
+      "magnet": "magnet:?xt=urn:btih:51a6c729aa50f712a441f01fdbb15a081351e67f&dn=whiteboard.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fwhiteboard%2Fwhiteboard.torrent"
+    },
+    {
+      "id": "roomhash-distributed-voting",
+      "name": "分布式公开投票",
+      "summary": "由各节点收集、转发并公开汇总结果的 Mesh 投票。",
+      "runtime": "standalone-web",
+      "path": "/appstore/voting/",
+      "manifest": "manifest.json",
+      "entry": "index.html",
+      "shareUrl": "https://roomhash.github.io/appstore/voting/"
+    },
+    {
+      "id": "roomhash-distributed-market",
+      "name": "分布式 Market",
+      "summary": "公开商品信息，以端到端加密购买意向为买卖双方搭线。",
+      "runtime": "standalone-web",
+      "path": "/appstore/market/",
+      "manifest": "manifest.json",
+      "entry": "index.html",
+      "shareUrl": "https://roomhash.github.io/appstore/market/"
+    }
+  ]
+}

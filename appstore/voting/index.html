@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RoomHash 分布式公开投票</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">ROOMHASH / LOCAL VIEW</p>
+      <h1>今天午饭吃什么？</h1>
+      <p class="warning"><strong>注意：</strong>这是当前收集者的本地可见结果，不是全局强一致结果。不同用户看到的统计可能不同，取决于各自实际收集到的票；节点重连并完成补票后才会逐步收敛。</p>
+    </header>
+
+    <section class="panel vote-panel">
+      <h2>公开投票</h2>
+      <label>昵称 <input id="nick" maxlength="80" value="访客" autocomplete="nickname"></label>
+      <label>身份种子 <input id="identity" value="demo-user" autocomplete="off"></label>
+      <p class="hint">演示会在本机 SHA-256 后使用；正式接入应由 RoomHash 宿主提供稳定 user hash。此协议版本不含签名。</p>
+      <fieldset id="options"><legend>选择一项</legend></fieldset>
+      <div class="actions">
+        <button id="cast">提交 / 改票</button>
+        <button id="sync" class="secondary">主动补票</button>
+      </div>
+      <p id="status" role="status"></p>
+    </section>
+
+    <section class="panel">
+      <div class="section-title">
+        <div><p class="eyebrow">COLLECTOR</p><h2>本节点统计</h2></div>
+        <code id="collector"></code>
+      </div>
+      <div id="tally" class="tally"></div>
+    </section>
+
+    <section class="panel audit-panel">
+      <div class="section-title">
+        <div><p class="eyebrow">PUBLIC AUDIT</p><h2>已收集原始票据</h2></div>
+        <span id="ballot-count">0 票</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nick</th><th>User hash</th><th>选项</th><th>Revision</th><th>Event ID</th></tr></thead>
+          <tbody id="audit"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

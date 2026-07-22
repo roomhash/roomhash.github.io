@@ -1,6 +1,7 @@
 /** RoomHash DOM rendering and workspace controls. */
 
 import { normalizeMimeType } from './message.js'
+import { loadAppstoreCatalog } from './appstore.js'
 import { applyDocumentTranslations, getLanguage, getLanguagePreference, localizeError, statusText, t } from './i18n.js'
 
 const DEMO_DISMISSED_KEY = 'roomhash:demo-notification-dismissed'
@@ -178,6 +179,12 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     ,fileCabinet: byId('file-cabinet')
     ,closeFileCabinet: byId('close-file-cabinet')
     ,seedList: byId('seed-list')
+    ,appstoreAnchor: byId('appstore-anchor')
+    ,appstoreTrigger: byId('appstore-trigger')
+    ,appstorePopover: byId('appstore-popover')
+    ,appstoreClose: byId('appstore-close')
+    ,appstoreStatus: byId('appstore-status')
+    ,appstoreList: byId('appstore-list')
   }
 
   applyDocumentTranslations(doc)
@@ -242,6 +249,98 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     }
   }
   syncDemoNotification()
+
+  let appstoreApps = []
+  let appstoreLoad = null
+  let appstoreOpen = false
+  const renderAppstore = () => {
+    if (!els.appstoreList) return
+    els.appstoreList.replaceChildren()
+    for (const app of appstoreApps) {
+      const card = doc.createElement('article')
+      card.className = 'appstore-card'
+      const mark = doc.createElement('span')
+      mark.className = 'appstore-card-mark'
+      mark.textContent = app.runtime === 'wasm' ? 'WASM' : 'WEB'
+      const copy = doc.createElement('span')
+      copy.className = 'appstore-card-copy'
+      const name = doc.createElement('strong')
+      name.textContent = app.name
+      const summary = doc.createElement('span')
+      summary.textContent = app.summary
+      const runtime = doc.createElement('small')
+      runtime.textContent = t(app.runtime === 'wasm' ? 'appstore.wasm' : 'appstore.web')
+      copy.append(name, summary, runtime)
+      const send = doc.createElement('button')
+      send.className = 'appstore-send'
+      send.type = 'button'
+      send.textContent = t('appstore.send')
+      send.addEventListener('click', async () => {
+        send.disabled = true
+        send.textContent = t('appstore.sending')
+        try {
+          await handlers.onShareApp?.(app)
+          setAppstoreOpen(false)
+        } catch (error) {
+          if (els.appstoreStatus) {
+            els.appstoreStatus.hidden = false
+            els.appstoreStatus.textContent = t('appstore.unavailable', { message: localizeError(error) })
+          }
+        } finally {
+          send.disabled = false
+          send.textContent = t('appstore.send')
+        }
+      })
+      card.append(mark, copy, send)
+      els.appstoreList.appendChild(card)
+    }
+  }
+  const ensureAppstore = async () => {
+    if (appstoreApps.length) return
+    if (!appstoreLoad) appstoreLoad = loadAppstoreCatalog()
+    try {
+      appstoreApps = await appstoreLoad
+      renderAppstore()
+      if (els.appstoreStatus) {
+        els.appstoreStatus.hidden = appstoreApps.length > 0
+        els.appstoreStatus.textContent = t(appstoreApps.length ? 'appstore.loading' : 'appstore.empty')
+      }
+    } catch (error) {
+      appstoreLoad = null
+      if (els.appstoreStatus) {
+        els.appstoreStatus.hidden = false
+        els.appstoreStatus.textContent = t('appstore.unavailable', { message: localizeError(error) })
+      }
+    }
+  }
+  function setAppstoreOpen(open, { restoreFocus = true } = {}) {
+    appstoreOpen = Boolean(open)
+    if (els.appstorePopover) els.appstorePopover.hidden = !appstoreOpen
+    els.appstoreTrigger?.setAttribute('aria-expanded', String(appstoreOpen))
+    if (appstoreOpen) {
+      if (els.appstoreStatus && !appstoreApps.length) {
+        els.appstoreStatus.hidden = false
+        els.appstoreStatus.textContent = t('appstore.loading')
+      }
+      ensureAppstore()
+      els.appstorePopover?.focus()
+    } else if (restoreFocus) {
+      els.appstoreTrigger?.focus()
+    }
+  }
+  els.appstoreTrigger?.addEventListener('click', () => setAppstoreOpen(!appstoreOpen))
+  els.appstoreClose?.addEventListener('click', () => setAppstoreOpen(false))
+  doc.addEventListener('pointerdown', (event) => {
+    if (appstoreOpen && !els.appstoreAnchor?.contains(event.target)) {
+      setAppstoreOpen(false, { restoreFocus: false })
+    }
+  })
+  doc.addEventListener('keydown', (event) => {
+    if (appstoreOpen && event.key === 'Escape') {
+      event.preventDefault()
+      setAppstoreOpen(false)
+    }
+  })
 
   els.shareDemoVideo?.addEventListener('click', () => run(() => handlers.onShareDemoVideo?.()))
   els.shareDemoGame?.addEventListener('click', () => run(() => handlers.onShareDemoGame?.()))
@@ -659,6 +758,7 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
       applyDocumentTranslations(doc)
       if (els.languageSelect) els.languageSelect.value = getLanguagePreference()
       syncCollapseAria()
+      renderAppstore()
     }
   }
 }

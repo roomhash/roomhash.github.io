@@ -1,0 +1,15 @@
+{
+  "schema": "roomhash.catalog-integrity/v1",
+  "algorithm": "sha256",
+  "files": {
+    "index.html": "88aec40411034b339214fdc0c41877479ec4f92c6ec63d7ac21a7fb6d419acd9",
+    "styles.css": "e518a8be6cbaf56a3bed9a2244bfdcb0f5a2b36236fb4ac09c3d721b42a7e630",
+    "app.js": "99f2c8a9b4703b60c3755a18ceda768bf49cd2a306d8d70fb38d638033adb4d5",
+    "protocol.js": "d25ff821cace4316b906a402d645a39745648defefd14c21740afd129f115338",
+    "host-adapter.js": "24a4ed4c806972f20c52dd65360bde58968963f647411104ca75e6e26a4ba17e",
+    "manifest.json": "4d36f7bf4822882241594b58e1b44aca7989a5a6a1f3fb6c2d1d2541f013147f",
+    "README.md": "21dfff81c8c4c290c0803b356ccfd6c98baab7535b9f42ac86b3b490e9da1182",
+    "PROTOCOL.md": "c9c515d39efc2736ce8287e7be38f5fdfff8349c13f36b162ae7862d35178e32",
+    "LICENSE": "50ca20cc0524764a8db62646472f1ad5de19423277aaf747c51295f82e616f8f"
+  }
+}

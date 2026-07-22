@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RoomHash Market</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header>
+    <div><span class="eyebrow">ROOMHASH MESH APP</span><h1>Market</h1></div>
+    <span id="network" class="pill">初始化中</span>
+  </header>
+  <main>
+    <aside>
+      <section class="notice danger"><strong>不处理线上付款</strong><br>这里只展示物品并搭线。确认购买仅把加密联系方式交给卖家；请勿发送钱包、付款或托管信息。</section>
+      <section class="notice"><strong>本地收集视图</strong><br>目录来自本节点已收到的数据。不同节点在分区期间可能看到不同内容，重连后通过 anti-entropy 补齐。</section>
+      <section>
+        <h2>我的身份</h2>
+        <form id="identity-form">
+          <label>昵称<input name="nick" required maxlength="80" placeholder="例如：小林"></label>
+          <label>公开联系身份<input name="publicContact" required maxlength="240" placeholder="例如 RoomHash @handle（所有人可见）"></label>
+          <button>生成本标签页身份密钥</button>
+        </form>
+        <div id="identity-card" hidden></div>
+      </section>
+      <section>
+        <h2>发布 / 更新物品</h2>
+        <form id="listing-form">
+          <input name="listingId" type="hidden">
+          <label>标题<input name="title" required maxlength="160"></label>
+          <div class="row"><label>价格<input name="amount" required inputmode="decimal" placeholder="88.00"></label><label>币种<input name="currency" required value="CNY" maxlength="12"></label></div>
+          <label>介绍<textarea name="description" required maxlength="5000"></textarea></label>
+          <label>本地照片 / 视频预览<input id="files" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"></label>
+          <div id="previews" class="previews"></div>
+          <p class="hint">文件只创建本地 Object URL，不进入 Gossip。请由宿主通过 torrent.media 发布后，把返回的描述符粘贴到下方。</p>
+          <label>内容寻址媒体描述符（JSON 数组）<textarea name="media" class="code" placeholder='[{"name":"x.webp","mime":"image/webp","size":123,"sha256":"…","magnet":"magnet:?…","webSeed":"https://…"}]'>[]</textarea></label>
+          <button>签名并发布</button>
+        </form>
+      </section>
+    </aside>
+    <div class="content">
+      <section>
+        <div class="section-title"><div><span class="eyebrow">PUBLIC CATALOG</span><h2>在售物品</h2></div><button id="sync" class="secondary">广播同步清单</button></div>
+        <div id="listings" class="grid"></div>
+      </section>
+      <section>
+        <span class="eyebrow">SELLER INBOX</span><h2>收到的购买意向</h2>
+        <div class="notice seller-alert"><strong>卖家下一步：</strong>请主动联系买家，双方自行商讨交付。RoomHash Market 不提供付款、托管或资金状态。</div>
+        <div id="inbox"></div>
+      </section>
+    </div>
+  </main>
+  <dialog id="buy-dialog">
+    <form id="buy-form" method="dialog">
+      <input name="listingId" type="hidden">
+      <h2>发出购买意向</h2>
+      <p id="buy-title"></p>
+      <label>买家昵称<input name="buyerNick" required maxlength="80"></label>
+      <label>联系方式<input name="contact" required maxlength="500" placeholder="电话、邮箱或其他联系方式"></label>
+      <label>收货 / 交付方式<textarea name="delivery" required maxlength="1000" placeholder="自提地点，或收货信息"></textarea></label>
+      <label>备注<textarea name="note" maxlength="2000"></textarea></label>
+      <p class="hint">以上字段将用卖家公开密钥加密。公开 Mesh 只转发密文、买家 hash 和协议元数据。</p>
+      <div class="actions"><button type="button" id="cancel-buy" class="secondary">取消</button><button>加密并发送</button></div>
+    </form>
+  </dialog>
+  <div id="toast" role="status"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

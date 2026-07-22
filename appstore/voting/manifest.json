@@ -1,0 +1,13 @@
+{
+  "schema": "roomhash.catalog-app/v1",
+  "id": "roomhash-distributed-voting",
+  "name": "分布式公开投票",
+  "version": "0.1.0",
+  "runtime": "standalone-web",
+  "entry": "index.html",
+  "protocol": "roomhash.vote/frame-v1",
+  "hostAdapter": "host-adapter.js",
+  "currentRoomHashWasmCompatible": false,
+  "summary": "按收集者本地已收集票据进行公开统计，支持 Mesh 多跳与 anti-entropy 补票。",
+  "notice": "不同用户看到的统计结果可能不同，取决于各自实际收集到的数据；结果不是全局强一致视图。"
+}
