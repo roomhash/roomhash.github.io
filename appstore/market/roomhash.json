@@ -17,11 +17,11 @@
       "notice": "Mesh 分区期间，不同节点收集到的市场视图可能不同。RoomHash 只负责信息展示与搭线，不处理线上付款。"
     }
   },
-  "version": "2.1.0",
+  "version": "2.1.1",
   "runtime": "wasm",
   "abi": "portable-surface-v1",
   "entry": "market.wasm",
-  "sha256": "280141f6cc9ae91cf115335f425ed7854901fff4373bb70b28c1811566dc25e8",
+  "sha256": "e44c813963d65d097e12aea63fdb46d9eefa700f08de35f0f4e694d9f3130db8",
   "permissions": [
     "channel.messages",
     "storage:512kb",

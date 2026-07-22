@@ -2,24 +2,24 @@
   "schema": "roomhash.app/v1",
   "id": "roomhash-voting",
   "name": "Shared Polls",
-  "description": "Create auditable public polls, deduplicate votes by user hash, and count what this node has collected.",
+  "description": "Browse and create auditable public polls with creator deletion, hash-deduplicated ballots, and automatic expiry within 14 days.",
   "i18n": {
     "en": {
       "name": "Shared Polls",
-      "description": "Create auditable public polls, deduplicate votes by user hash, and count what this node has collected.",
+      "description": "Browse and create auditable public polls with creator deletion, hash-deduplicated ballots, and automatic expiry within 14 days.",
       "notice": "Results are local collection views, not globally consistent totals. Different peers may show different counts until their event sets converge."
     },
     "zh-CN": {
       "name": "共享投票",
-      "description": "创建可公开审计的投票，按用户 Hash 排重，并汇总当前节点实际收集到的票据。",
+      "description": "浏览或创建公开投票，支持创建者删除、按用户 Hash 排重，并在最长 14 天后自动清理。",
       "notice": "结果是当前节点的本地收集视图，并非全局强一致统计；在事件集合收敛前，不同参与者看到的票数可能不同。"
     }
   },
-  "version": "1.1.0",
+  "version": "1.1.1",
   "runtime": "wasm",
   "abi": "portable-surface-v1",
   "entry": "voting.wasm",
-  "sha256": "3110a4558f59d1b143ed33cfa5845afa591b200bd495e4716b14cf934df0766d",
+  "sha256": "ea42a1e5b99edefbe8c57ac559aece362dfd390b6bfe3b86d92a6cacd1d6e1b0",
   "permissions": [
     "channel.messages",
     "storage:512kb"

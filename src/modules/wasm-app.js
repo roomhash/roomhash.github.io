@@ -261,7 +261,7 @@ export class WasmAppController {
     const context = {
       nickname: String(identity.nickname || ''), peerId: String(identity.peerId || ''),
       identitySeed, channelId, instanceId, savedState,
-      locale: doc.documentElement.lang || 'zh-CN', theme: 'dark'
+      locale: doc.documentElement.lang || 'zh-CN', theme: 'dark', nowMs: Date.now()
     }
 
     const listeners = this.listeners.get(key) || new Set()
@@ -280,11 +280,14 @@ export class WasmAppController {
     let stopped = false
     let resizeObserver = null
     let textInput = null
+    let lastViewportAt = 0
     const media = new Map()
     const objectUrls = new Set()
     const fullscreenElement = () => doc.fullscreenElement || doc.webkitFullscreenElement
     const send = (event) => this.sendEvent(channelId, { instanceId, appHash: digest, event }).catch(() => {})
-    const dispatch = (input) => worker.postMessage({ type: 'surface-input', input })
+    const dispatch = (input) => worker.postMessage({
+      type: 'surface-input', input: { ...input, nowMs: Date.now() }
+    })
     const viewport = () => {
       const rect = stage.getBoundingClientRect()
       const width = Math.max(0, Math.floor(stage.clientWidth || rect.width))
@@ -293,6 +296,7 @@ export class WasmAppController {
         kind: 'viewport', width, height,
         dpr: Math.min(3, doc.defaultView.devicePixelRatio || 1), fullscreen: fullscreenElement() === shell
       })
+      lastViewportAt = Date.now()
     }
     const setFullscreen = async (enabled) => {
       if (enabled && fullscreenElement() !== shell) {
@@ -310,18 +314,54 @@ export class WasmAppController {
       if (!effect.multiline) input.type = 'text'
       input.value = String(effect.value || '')
       input.inputMode = String(effect.inputMode || 'text')
+      input.autocomplete = 'off'
+      input.autocapitalize = 'sentences'
+      input.spellcheck = true
+      input.enterKeyHint = effect.multiline ? 'enter' : 'done'
       input.setAttribute('aria-label', String(effect.label || effect.requestId || 'Application input'))
       input.className = 'portable-surface-input-bridge'
-      const update = () => dispatch({
-        kind: 'text', requestId: String(effect.requestId || ''), value: input.value,
-        selectionStart: input.selectionStart || 0, selectionEnd: input.selectionEnd || 0
+      let composing = false
+      let compositionEndedAt = -Infinity
+      let lastPayload = `${input.value}\u0000${input.selectionStart ?? 0}\u0000${input.selectionEnd ?? 0}`
+      const update = () => {
+        if (composing) return
+        const selectionStart = input.selectionStart ?? 0
+        const selectionEnd = input.selectionEnd ?? 0
+        const payload = `${input.value}\u0000${selectionStart}\u0000${selectionEnd}`
+        if (payload === lastPayload) return
+        lastPayload = payload
+        dispatch({
+          kind: 'text', requestId: String(effect.requestId || ''), value: input.value,
+          selectionStart, selectionEnd
+        })
+      }
+      input.addEventListener('compositionstart', () => { composing = true })
+      input.addEventListener('compositionend', () => {
+        composing = false
+        compositionEndedAt = performance.now()
+        update()
       })
       input.addEventListener('input', update)
-      input.addEventListener('blur', () => { if (textInput === input) textInput = null; input.remove() }, { once: true })
-      doc.body.appendChild(input)
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') { event.preventDefault(); input.blur(); return }
+        if (event.key !== 'Enter' || effect.multiline) return
+        const isImeCommit = composing || event.isComposing || event.keyCode === 229 ||
+          performance.now() - compositionEndedAt < 80
+        if (isImeCommit) return
+        event.preventDefault()
+        update()
+        input.blur()
+      })
+      input.addEventListener('blur', () => {
+        update()
+        if (textInput === input) textInput = null
+        input.remove()
+        canvas.focus({ preventScroll: true })
+      }, { once: true })
+      textInput = input
+      shell.appendChild(input)
       input.focus({ preventScroll: true })
       input.setSelectionRange?.(input.value.length, input.value.length)
-      textInput = input
     }
     const hostResult = (requestId, ok, value, error = '') => dispatch({ kind: 'host-result', requestId, ok, value, error })
     const saveImage = async (effect) => {
@@ -483,6 +523,7 @@ export class WasmAppController {
     resizeObserver.observe(stage)
     timer = setInterval(() => {
       if (Date.now() - lastPong > 5000) { status.textContent = t('wasm.invalid', { message: 'execution timeout' }); cleanup(); return }
+      if (Date.now() - lastViewportAt > 30_000) viewport()
       worker.postMessage({ type: 'ping' })
     }, 1500)
     worker.postMessage({ type: 'load', bytes, context }, [bytes])

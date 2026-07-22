@@ -52,15 +52,15 @@
     {
       "id": "roomhash-voting",
       "name": "Shared Polls",
-      "summary": "Create auditable public polls, deduplicate votes by user hash, and count what this node has collected.",
+      "summary": "Browse and create auditable public polls with creator deletion, hash-deduplicated ballots, and automatic expiry within 14 days.",
       "i18n": {
         "en": {
           "name": "Shared Polls",
-          "summary": "Create auditable public polls, deduplicate votes by user hash, and count what this node has collected."
+          "summary": "Browse and create auditable public polls with creator deletion, hash-deduplicated ballots, and automatic expiry within 14 days."
         },
         "zh-CN": {
           "name": "共享投票",
-          "summary": "创建可公开审计的投票，按用户 Hash 排重，并汇总当前节点实际收集到的票据。"
+          "summary": "浏览或创建公开投票，支持创建者删除、按用户 Hash 排重，并在最长 14 天后自动清理。"
         }
       },
       "runtime": "wasm",
@@ -69,9 +69,9 @@
       "entry": "voting.wasm",
       "torrent": "voting.torrent",
       "webSeed": "https://roomhash.github.io/appstore/voting/voting.wasm",
-      "entrySize": 255987,
-      "magnet": "magnet:?xt=urn:btih:da2f79310d05b370312e4e03cd4f493331359309&dn=voting.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fvoting%2Fvoting.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fvoting%2Fvoting.torrent",
-      "infoHash": "da2f79310d05b370312e4e03cd4f493331359309"
+      "entrySize": 309531,
+      "magnet": "magnet:?xt=urn:btih:f68d707456063667e55676bef38e97b5f1009109&dn=voting.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fvoting%2Fvoting.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fvoting%2Fvoting.torrent",
+      "infoHash": "f68d707456063667e55676bef38e97b5f1009109"
     },
     {
       "id": "org.roomhash.market",
@@ -93,9 +93,9 @@
       "entry": "market.wasm",
       "torrent": "market.torrent",
       "webSeed": "https://roomhash.github.io/appstore/market/market.wasm",
-      "entrySize": 433113,
-      "magnet": "magnet:?xt=urn:btih:c819eb7bfc25322663db0a243d109af98009a53b&dn=market.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fmarket%2Fmarket.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fmarket%2Fmarket.torrent",
-      "infoHash": "c819eb7bfc25322663db0a243d109af98009a53b"
+      "entrySize": 433129,
+      "magnet": "magnet:?xt=urn:btih:5a63c855b84e330540bbb3ea68c8be05093d2cfa&dn=market.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fmarket%2Fmarket.wasm&xs=https%3A%2F%2Froomhash.github.io%2Fappstore%2Fmarket%2Fmarket.torrent",
+      "infoHash": "5a63c855b84e330540bbb3ea68c8be05093d2cfa"
     }
   ]
 }

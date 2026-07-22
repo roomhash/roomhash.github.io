@@ -29,10 +29,13 @@ npm run check
 
 ## 分布式语义
 
-- 创建投票会生成公开 `poll-created` 事件；并发创建按 event ID 确定性选择
-  当前投票。
-- 每张 ballot 记录 nick、voterHash、optionId、revision、pollId 和 eventId。
-- 当前投票按 `voterHash` 只计一票；最大 `(revision,eventId)` 胜出，因此改票
+- 每个节点维护可参与投票列表，参与者可选择要查看和参加的投票；创建者可删除
+  自己创建的投票。
+- 投票有效期由创建者选择，但不得超过 14 天；到期后投票内容、选项和票据会
+  从节点状态中自动清除，不再继续转发。
+- 每张 ballot 记录 nick、voterHash、optionId、revision、pollId、expiresAtMs 和
+  eventId。
+- 每个投票按 `voterHash` 只计一票；最大 `(revision,eventId)` 胜出，因此改票
   和乱序投递仍然收敛。
 - WASM 验证所有远程事件和快照，按 event ID 排重，拒绝 echo 和非法字段。
 - 所有合法原始 ballot 保留并公开展示，明确标识“当前计票”或“已被改票替代”。
