@@ -4,6 +4,15 @@ RoomHash treats an ordinary `.wasm` attachment as a downloadable torrent. It is
 executable only when a `roomhash.json` manifest declares a supported ABI and the
 downloaded bytes match the manifest SHA-256 fingerprint.
 
+## AppStore admission rule
+
+RoomHash AppStore is WASM-only. Every catalog entry must use `runtime: "wasm"`,
+provide a `roomhash.app/v1` manifest, target a supported embedded ABI, and keep
+its application state and business logic inside WASM. Standalone web bundles,
+external application links, and iframe-based applications are not eligible for
+the AppStore. RoomHash acts as the bounded host and transport layer; it is not a
+place to move an application's business logic into page JavaScript.
+
 ## Manifest
 
 ```json
