@@ -31,7 +31,7 @@ describe('AppStore publication', () => {
       const manifest = await json(`${app.path.replace('/appstore/', '')}${app.manifest}`)
       assert.equal(manifest.id, app.id)
       assert.equal(manifest.runtime, 'wasm')
-      assert.match(manifest.abi, /^roomhash-(pixel-grid|form)-v1$/)
+      assert.match(manifest.abi, /^(roomhash-(pixel-grid|form)-v1|portable-surface-v1)$/)
       const entry = await readFile(new URL(`${app.path.replace('/appstore/', '')}${app.entry}`, root))
       assert.equal(entry.length, app.entrySize)
     }

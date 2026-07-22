@@ -1,9 +1,10 @@
 import { localizeError, t } from '../i18n.js'
 import { renderWasmFormView } from './wasm-form-ui.js'
+import { paintPortableScene } from './portable-surface.js'
 
 export const WASM_APP_MODULE = 'wasm.app'
 export const WASM_APP_EVENT_MODULE = 'wasm.app.event'
-export const SUPPORTED_WASM_ABIS = new Set(['roomhash-pixel-grid-v1', 'roomhash-form-v1'])
+export const SUPPORTED_WASM_ABIS = new Set(['roomhash-pixel-grid-v1', 'roomhash-form-v1', 'portable-surface-v1'])
 
 const MAX_WASM_BYTES = 10 * 1024 * 1024
 const TRUST_PREFIX = 'roomhash:wasm-trust:'
@@ -195,6 +196,223 @@ export class WasmAppController {
     return URL.createObjectURL(await file.blob())
   }
 
+  launchSurface({ manifest, bytes, digest, worker, mount, doc, channelId, instanceId, key, onStop }) {
+    const shell = doc.createElement('section')
+    shell.className = 'wasm-game-shell portable-surface-shell'
+    const toolbar = doc.createElement('div')
+    toolbar.className = 'wasm-game-toolbar portable-host-toolbar'
+    const name = doc.createElement('strong')
+    name.textContent = manifest.name || manifest.id
+    const fullscreen = doc.createElement('button')
+    fullscreen.type = 'button'
+    fullscreen.textContent = t('wasm.fullscreen')
+    const stop = doc.createElement('button')
+    stop.type = 'button'
+    stop.textContent = t('wasm.stop')
+    toolbar.append(name, fullscreen, stop)
+    const status = doc.createElement('p')
+    status.className = 'wasm-app-status portable-surface-status'
+    status.setAttribute('aria-live', 'polite')
+    const stage = doc.createElement('div')
+    stage.className = 'portable-surface-stage'
+    const canvas = doc.createElement('canvas')
+    canvas.className = 'portable-surface-canvas'
+    canvas.tabIndex = 0
+    stage.appendChild(canvas)
+    shell.append(toolbar, status, stage)
+    mount.replaceChildren(shell)
+
+    const storage = doc.defaultView?.localStorage
+    const identityKey = `roomhash:wasm-identity:${manifest.id}`
+    let identitySeed = ''
+    try { identitySeed = storage?.getItem(identityKey) || '' } catch {}
+    if (!/^[a-f0-9]{64}$/i.test(identitySeed)) {
+      identitySeed = hex(crypto.getRandomValues(new Uint8Array(32)))
+      try { storage?.setItem(identityKey, identitySeed) } catch {}
+    }
+    const stateKey = `roomhash:wasm-state:${key}`
+    let savedState = null
+    try { savedState = JSON.parse(storage?.getItem(stateKey) || 'null') } catch {}
+    const identity = this.getIdentity?.() || {}
+    const context = {
+      nickname: String(identity.nickname || ''), peerId: String(identity.peerId || ''),
+      identitySeed, channelId, instanceId, savedState,
+      locale: doc.documentElement.lang || 'zh-CN', theme: 'dark'
+    }
+
+    const listeners = this.listeners.get(key) || new Set()
+    const receive = (event) => {
+      if (!event || typeof event !== 'object') return
+      if (event.kind === 'surface-event') worker.postMessage({ type: 'surface-input', input: { kind: 'remote', event: event.data } })
+      if (event.kind === 'state-request') worker.postMessage({ type: 'surface-input', input: { kind: 'state-request' } })
+      if (event.kind === 'surface-snapshot' && event.state) worker.postMessage({ type: 'surface-input', input: { kind: 'snapshot', state: event.state } })
+    }
+    listeners.add(receive)
+    this.listeners.set(key, listeners)
+
+    let currentScene = null
+    let lastPong = Date.now()
+    let timer = 0
+    let stopped = false
+    let resizeObserver = null
+    let textInput = null
+    const media = new Map()
+    const objectUrls = new Set()
+    const fullscreenElement = () => doc.fullscreenElement || doc.webkitFullscreenElement
+    const send = (event) => this.sendEvent(channelId, { instanceId, appHash: digest, event }).catch(() => {})
+    const dispatch = (input) => worker.postMessage({ type: 'surface-input', input })
+    const viewport = () => {
+      const rect = stage.getBoundingClientRect()
+      if (rect.width > 0 && rect.height > 0) dispatch({
+        kind: 'viewport', width: rect.width, height: rect.height,
+        dpr: Math.min(2, doc.defaultView.devicePixelRatio || 1), fullscreen: fullscreenElement() === shell
+      })
+    }
+    const setFullscreen = async (enabled) => {
+      if (enabled && fullscreenElement() !== shell) {
+        const request = shell.requestFullscreen || shell.webkitRequestFullscreen
+        if (!request) throw new Error(t('wasm.fullscreenUnavailable'))
+        await request.call(shell)
+      } else if (!enabled && fullscreenElement() === shell) {
+        const exit = doc.exitFullscreen || doc.webkitExitFullscreen
+        await exit?.call(doc)
+      }
+    }
+    const openTextInput = (effect) => {
+      textInput?.remove()
+      const input = doc.createElement(effect.multiline ? 'textarea' : 'input')
+      if (!effect.multiline) input.type = 'text'
+      input.value = String(effect.value || '')
+      input.inputMode = String(effect.inputMode || 'text')
+      input.setAttribute('aria-label', String(effect.label || effect.requestId || 'Application input'))
+      input.className = 'portable-surface-input-bridge'
+      const update = () => dispatch({
+        kind: 'text', requestId: String(effect.requestId || ''), value: input.value,
+        selectionStart: input.selectionStart || 0, selectionEnd: input.selectionEnd || 0
+      })
+      input.addEventListener('input', update)
+      input.addEventListener('blur', () => { if (textInput === input) textInput = null; input.remove() }, { once: true })
+      doc.body.appendChild(input)
+      input.focus({ preventScroll: true })
+      input.setSelectionRange?.(input.value.length, input.value.length)
+      textInput = input
+    }
+    const hostResult = (requestId, ok, value, error = '') => dispatch({ kind: 'host-result', requestId, ok, value, error })
+    const handleEffect = async (effect) => {
+      if (!effect || typeof effect.type !== 'string') return
+      const requestId = String(effect.requestId || '')
+      try {
+        if (effect.type === 'fullscreen') await setFullscreen(Boolean(effect.enabled))
+        else if (effect.type === 'announce') { status.textContent = String(effect.text || ''); return }
+        else if (effect.type === 'text-input') { openTextInput(effect); return }
+        else if (effect.type === 'clipboard-write') await doc.defaultView.navigator.clipboard.writeText(String(effect.text || ''))
+        else if (effect.type === 'pick-files') {
+          const input = doc.createElement('input')
+          input.type = 'file'
+          input.multiple = Boolean(effect.multiple)
+          input.accept = Array.isArray(effect.accept) ? effect.accept.join(',') : ''
+          input.addEventListener('change', async () => {
+            try {
+              const resolved = await this.resolveFormValues({ files: [...(input.files || [])] })
+              hostResult(requestId, true, resolved.files || [])
+            } catch (error) { hostResult(requestId, false, null, localizeError(error)) }
+          }, { once: true })
+          input.click()
+          return
+        } else if (effect.type === 'load-media') {
+          const url = await this.resolveFormMedia(effect.descriptor)
+          objectUrls.add(url)
+          const image = new doc.defaultView.Image()
+          image.src = url
+          await image.decode()
+          media.set(requestId, image)
+          if (currentScene) paintPortableScene(canvas, currentScene, { media })
+        } else if (effect.type === 'open-media') {
+          const url = await this.resolveFormMedia(effect.descriptor)
+          objectUrls.add(url)
+          doc.defaultView.open(url, '_blank', 'noopener,noreferrer')
+        } else return
+        if (requestId) hostResult(requestId, true, null)
+      } catch (error) {
+        if (requestId) hostResult(requestId, false, null, localizeError(error))
+        status.textContent = localizeError(error)
+      }
+    }
+    const cleanup = () => {
+      if (stopped) return
+      stopped = true
+      clearInterval(timer)
+      resizeObserver?.disconnect()
+      worker.terminate()
+      listeners.delete(receive)
+      textInput?.remove()
+      for (const url of objectUrls) URL.revokeObjectURL(url)
+      doc.removeEventListener('fullscreenchange', onFullscreenChange)
+      doc.removeEventListener('webkitfullscreenchange', onFullscreenChange)
+      onStop?.()
+    }
+    const onFullscreenChange = () => {
+      const active = fullscreenElement() === shell
+      shell.classList.toggle('is-fullscreen', active)
+      fullscreen.textContent = t(active ? 'wasm.exitFullscreen' : 'wasm.fullscreen')
+      viewport()
+    }
+
+    worker.addEventListener('message', ({ data }) => {
+      if (data.type === 'ready') {
+        send({ kind: 'state-request' })
+        viewport()
+      } else if (data.type === 'surface-scene') {
+        currentScene = data.scene
+        paintPortableScene(canvas, currentScene, { media })
+      } else if (data.type === 'surface-effect') {
+        handleEffect(data.effect)
+      } else if (data.type === 'event') {
+        send({ kind: 'surface-event', data: data.event })
+      } else if (data.type === 'surface-snapshot') {
+        send({ kind: 'surface-snapshot', state: data.state })
+      } else if (data.type === 'persist') {
+        try { storage?.setItem(stateKey, JSON.stringify(data.state)) } catch {}
+      } else if (data.type === 'surface-error') {
+        status.textContent = localizeError(data.message)
+      } else if (data.type === 'pong') {
+        lastPong = Date.now()
+      } else if (data.type === 'error') {
+        status.textContent = t('wasm.invalid', { message: data.message })
+        cleanup()
+      }
+    })
+    worker.addEventListener('error', (error) => { status.textContent = t('wasm.invalid', { message: localizeError(error) }); cleanup() })
+
+    const point = (event) => {
+      const rect = canvas.getBoundingClientRect()
+      return { x: (event.clientX - rect.left) * (currentScene?.width || rect.width) / rect.width, y: (event.clientY - rect.top) * (currentScene?.height || rect.height) / rect.height }
+    }
+    for (const phase of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) {
+      canvas.addEventListener(phase, (event) => {
+        if (phase === 'pointerdown') { canvas.focus({ preventScroll: true }); canvas.setPointerCapture?.(event.pointerId) }
+        for (const sample of phase === 'pointermove' ? event.getCoalescedEvents?.() || [event] : [event]) {
+          const current = point(sample)
+          dispatch({ kind: 'pointer', phase: phase.slice(7), pointerId: event.pointerId, x: current.x, y: current.y, buttons: event.buttons, pressure: event.pressure || 0 })
+        }
+      })
+    }
+    canvas.addEventListener('wheel', (event) => { event.preventDefault(); const current = point(event); dispatch({ kind: 'wheel', x: current.x, y: current.y, deltaX: event.deltaX, deltaY: event.deltaY }) }, { passive: false })
+    canvas.addEventListener('keydown', (event) => dispatch({ kind: 'key', phase: 'down', key: event.key, code: event.code, repeat: event.repeat }))
+    fullscreen.addEventListener('click', () => setFullscreen(fullscreenElement() !== shell).catch((error) => { status.textContent = localizeError(error) }))
+    stop.addEventListener('click', () => { cleanup(); mount.replaceChildren() })
+    doc.addEventListener('fullscreenchange', onFullscreenChange)
+    doc.addEventListener('webkitfullscreenchange', onFullscreenChange)
+    resizeObserver = new ResizeObserver(() => viewport())
+    resizeObserver.observe(stage)
+    timer = setInterval(() => {
+      if (Date.now() - lastPong > 5000) { status.textContent = t('wasm.invalid', { message: 'execution timeout' }); cleanup(); return }
+      worker.postMessage({ type: 'ping' })
+    }, 1500)
+    worker.postMessage({ type: 'load', bytes, context }, [bytes])
+    return true
+  }
+
   launchForm({ payload, manifest, bytes, digest, worker, mount, doc, channelId, instanceId, key, onStop }) {
     const shell = doc.createElement('section')
     shell.className = 'wasm-game-shell wasm-form-shell'
@@ -340,6 +558,9 @@ export class WasmAppController {
     const instanceId = String(payload.instanceId || manifest.id)
     const key = runtimeKey(channelId, instanceId, digest)
     const worker = new Worker(new URL('../workers/wasm-runtime.worker.js', import.meta.url), { type: 'module' })
+    if (manifest.abi === 'portable-surface-v1') {
+      return this.launchSurface({ manifest, bytes, digest, worker, mount, doc, channelId, instanceId, key, onStop })
+    }
     if (manifest.abi === 'roomhash-form-v1') {
       return this.launchForm({ payload, manifest, bytes, digest, worker, mount, doc, channelId, instanceId, key, onStop })
     }

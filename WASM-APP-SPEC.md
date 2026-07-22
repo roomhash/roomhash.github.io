@@ -13,6 +13,14 @@ external application links, and iframe-based applications are not eligible for
 the AppStore. RoomHash acts as the bounded host and transport layer; it is not a
 place to move an application's business logic into page JavaScript.
 
+App releases must also be WebUI-independent. App-specific HTML/CSS/JavaScript,
+RoomHash DOM dependencies, and RoomHash component/view schemas are forbidden.
+New interactive applications target the host-neutral `portable-surface-v1`
+contract documented in the workspace `wasm-app-sdk/ABI.md`: WASM owns the
+responsive scene, hit testing, focus/draft state, validation, and domain
+behavior; RoomHash is only a generic canvas/input/P2P/storage/media adapter. The
+same `.wasm` must run in a third-party conforming host without recompilation.
+
 ## Manifest
 
 ```json

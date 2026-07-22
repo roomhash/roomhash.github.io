@@ -2,14 +2,11 @@
   "schema": "roomhash.app/v1",
   "id": "org.roomhash.whiteboard",
   "name": "Shared Whiteboard",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "runtime": "wasm",
-  "abi": "roomhash-pixel-grid-v1",
-  "ui": {
-    "mode": "whiteboard"
-  },
+  "abi": "portable-surface-v1",
   "entry": "whiteboard.wasm",
-  "sha256": "aa930528877dc26aac23db4d1d9ad316ed3f9a43466f920516fe79dd29b68dd3",
+  "sha256": "9d627b58597049e65ffdc5492c15a4afe33e286dffe3915b48ab3c2a84adfa56",
   "permissions": [
     "channel.messages",
     "storage:256kb"
