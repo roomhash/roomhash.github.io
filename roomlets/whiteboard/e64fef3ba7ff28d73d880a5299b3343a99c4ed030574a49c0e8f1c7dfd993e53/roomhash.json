@@ -1,0 +1,34 @@
+{
+  "schema": "roomhash.app/v1",
+  "id": "org.roomhash.whiteboard",
+  "name": "Shared Whiteboard",
+  "description": "Sketch together on a responsive meeting whiteboard with P2P sync, undo, erase, and PNG export.",
+  "i18n": {
+    "en": {
+      "name": "Shared Whiteboard",
+      "description": "Sketch together on a responsive meeting whiteboard with P2P sync, undo, erase, PNG export, and late-join recovery."
+    },
+    "zh-CN": {
+      "name": "共享白板",
+      "description": "适合会议协作的响应式共享白板，支持 P2P 笔迹同步、撤销、擦除、图片保存与后来者状态恢复。"
+    }
+  },
+  "version": "2.1.0",
+  "runtime": "wasm",
+  "abi": "portable-surface-v1",
+  "entry": "whiteboard.wasm",
+  "sha256": "e64fef3ba7ff28d73d880a5299b3343a99c4ed030574a49c0e8f1c7dfd993e53",
+  "permissions": [
+    "channel.messages",
+    "storage:256kb",
+    "file.download"
+  ],
+  "distribution": {
+    "torrent": "whiteboard.torrent",
+    "infoHash": "b2704012fbc7064c9005d8fecbb5437c229d9956",
+    "entrySize": 144137,
+    "webSeed": "https://roomhash.github.io/roomlets/whiteboard/e64fef3ba7ff28d73d880a5299b3343a99c4ed030574a49c0e8f1c7dfd993e53/whiteboard.wasm",
+    "exactSource": "https://roomhash.github.io/roomlets/whiteboard/e64fef3ba7ff28d73d880a5299b3343a99c4ed030574a49c0e8f1c7dfd993e53/whiteboard.torrent",
+    "magnet": "magnet:?xt=urn%3Abtih%3Ab2704012fbc7064c9005d8fecbb5437c229d9956&dn=whiteboard.wasm&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Froomhash.github.io%2Froomlets%2Fwhiteboard%2Fe64fef3ba7ff28d73d880a5299b3343a99c4ed030574a49c0e8f1c7dfd993e53%2Fwhiteboard.wasm&xs=https%3A%2F%2Froomhash.github.io%2Froomlets%2Fwhiteboard%2Fe64fef3ba7ff28d73d880a5299b3343a99c4ed030574a49c0e8f1c7dfd993e53%2Fwhiteboard.torrent"
+  }
+}

@@ -25,10 +25,12 @@ responsive scene, hit testing, focus/draft state, validation, and domain
 behavior; RoomHash is only a generic canvas/input/P2P/storage/media adapter. The
 same `.wasm` must run in a third-party conforming host without recompilation.
 
-The RoomHash Web UI publishes only a lightweight index containing each stable
-application ID and its HTTPS manifest URL. An application repository owns its
-source, release artifacts, manifest, torrent, HTTP Seed, CI, and versioning.
-Neither RoomHash Pages nor a `/demo` directory is an application release host.
+An application repository owns its source, canonical release artifacts, CI, and
+versioning. Publishing a release also creates a verified, source-free runtime
+snapshot under `/roomlets/<slug>/<sha256>/` on RoomHash Pages. The hosted client
+uses that same-origin manifest, WASM, torrent, and HTTP Seed so WebTorrent range
+requests do not depend on cross-origin preflight support. `/demo` is not an
+application release location.
 
 ## Manifest
 
@@ -52,8 +54,8 @@ Neither RoomHash Pages nor a `/demo` directory is an application release host.
     "torrent": "pixel_garden.torrent",
     "infoHash": "40-hex-infohash",
     "entrySize": 1077,
-    "webSeed": "https://raw.githubusercontent.com/roomhash/pixel_garden/main/dist/pixel_garden.wasm",
-    "exactSource": "https://raw.githubusercontent.com/roomhash/pixel_garden/main/dist/pixel_garden.torrent",
+    "webSeed": "https://roomhash.github.io/roomlets/pixel-garden/<sha256>/pixel_garden.wasm",
+    "exactSource": "https://roomhash.github.io/roomlets/pixel-garden/<sha256>/pixel_garden.torrent",
     "magnet": "magnet:?xt=urn:btih:..."
   }
 }

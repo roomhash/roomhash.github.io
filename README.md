@@ -61,10 +61,12 @@ channel. The RoomHash Web UI is only a generic host: application UI, input
 handling, business rules, replicated state, and merge behavior remain inside
 the WASM module.
 
-The Web UI repository contains only [`roomlets/catalog.json`](roomlets/catalog.json),
-a small index of independently published manifests. It does not copy Roomlet
-source code or release binaries. Current applications live in separate
-repositories and use stable reverse-domain IDs:
+Application source, CI, and canonical releases live in separate repositories.
+For browser-compatible publication, this Web UI repository mirrors only the
+verified runtime files (`roomhash.json`, `.wasm`, and `.torrent`) beneath
+[`roomlets/`](roomlets/). These versioned, same-origin files are the HTTP Seeds
+used by the hosted client; no Roomlet source code is copied into Pages.
+Current applications use stable reverse-domain IDs:
 
 - [`roomhash/pixel_garden`](https://github.com/roomhash/pixel_garden) — `org.roomhash.pixel-garden`
 - [`roomhash/whiteboard`](https://github.com/roomhash/whiteboard) — `org.roomhash.whiteboard`
@@ -73,8 +75,10 @@ repositories and use stable reverse-domain IDs:
 
 Every indexed application must be WASM. Standalone HTML applications, iframe
 packages, and host-specific application logic are not accepted as Roomlets.
-Each application repository owns its `roomhash.json`, `.wasm`, `.torrent`, HTTP
-Seed, tests, and release lifecycle.
+Each application repository owns its source, canonical release, tests, and
+release lifecycle. Run `npm run publish:roomlets` in this repository to verify
+the four upstream releases, rewrite their torrent and magnet sources to
+versioned Pages URLs, and atomically refresh the checked-in publication mirror.
 
 ## Develop
 
@@ -82,6 +86,7 @@ Seed, tests, and release lifecycle.
 npm install
 npm run dev      # Vite dev server
 npm test         # unit + protocol tests (shipped modules)
+npm run publish:roomlets # verify + mirror upstream Roomlet releases
 npm run build    # static assets → dist/
 npm run preview  # serve dist/
 ```

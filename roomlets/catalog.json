@@ -3,19 +3,19 @@
   "roomlets": [
     {
       "id": "org.roomhash.pixel-garden",
-      "manifestUrl": "https://raw.githubusercontent.com/roomhash/pixel_garden/main/dist/roomhash.json"
+      "manifestUrl": "./pixel-garden/340b7f1a3b8b1891bd7440b1b81a584a79124dca97f10c448d0e85bd23e162dc/roomhash.json"
     },
     {
       "id": "org.roomhash.whiteboard",
-      "manifestUrl": "https://raw.githubusercontent.com/roomhash/whiteboard/main/dist/roomhash.json"
+      "manifestUrl": "./whiteboard/e64fef3ba7ff28d73d880a5299b3343a99c4ed030574a49c0e8f1c7dfd993e53/roomhash.json"
     },
     {
       "id": "org.roomhash.voting",
-      "manifestUrl": "https://raw.githubusercontent.com/roomhash/voting/main/dist/roomhash.json"
+      "manifestUrl": "./voting/f88b6cb5ea3a20938cef10a1dcf37ee2bfc175c454d7d8190b1ce3f88885e97d/roomhash.json"
     },
     {
       "id": "org.roomhash.market",
-      "manifestUrl": "https://raw.githubusercontent.com/roomhash/market/main/dist/roomhash.json"
+      "manifestUrl": "./market/e44c813963d65d097e12aea63fdb46d9eefa700f08de35f0f4e694d9f3130db8/roomhash.json"
     }
   ]
 }

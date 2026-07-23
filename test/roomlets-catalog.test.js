@@ -18,9 +18,9 @@ function manifest({
   id = 'org.roomhash.example',
   repo = 'example',
   entry = 'example.wasm',
-  name = 'Example'
+  name = 'Example',
+  base = `https://raw.githubusercontent.com/roomhash/${repo}/main/dist`
 } = {}) {
-  const base = `https://raw.githubusercontent.com/roomhash/${repo}/main/dist`
   const infoHash = '0123456789abcdef0123456789abcdef01234567'
   const webSeed = `${base}/${entry}`
   const exactSource = `${base}/${entry.replace(/\.wasm$/, '.torrent')}`
@@ -55,7 +55,7 @@ function manifest({
 }
 
 describe('Roomlet catalog', () => {
-  it('publishes four independent manifest references with canonical ids', async () => {
+  it('publishes four versioned Pages manifest references with canonical ids', async () => {
     const input = JSON.parse(await readFile(catalogUrl, 'utf8'))
     const roomlets = normalizeRoomletCatalog(input, 'https://roomhash.github.io/roomlets/catalog.json')
     assert.deepEqual(roomlets.map(({ id }) => id), [
@@ -65,7 +65,7 @@ describe('Roomlet catalog', () => {
       'org.roomhash.market'
     ])
     assert.equal(roomlets.every(({ manifestUrl }) =>
-      /^https:\/\/raw\.githubusercontent\.com\/roomhash\/[^/]+\/main\/dist\/roomhash\.json$/.test(manifestUrl)
+      /^https:\/\/roomhash\.github\.io\/roomlets\/[a-z-]+\/[a-f0-9]{64}\/roomhash\.json$/.test(manifestUrl)
     ), true)
   })
 
@@ -126,5 +126,20 @@ describe('Roomlet catalog', () => {
       id: 'org.roomhash.bad',
       manifestUrl: 'http://example.com/roomhash.json'
     }), /manifest URL/)
+  })
+
+  it('uses a loopback publication mirror during local preview', () => {
+    const reference = normalizeRoomletReference({
+      id: 'org.roomhash.example',
+      manifestUrl: './example/roomhash.json'
+    }, 'http://127.0.0.1:4173/roomlets/catalog.json')
+    const input = manifest({ base: 'https://roomhash.github.io/roomlets/example' })
+    const roomlet = normalizeRoomletManifest(input, reference)
+    assert.equal(roomlet.webSeed, 'http://127.0.0.1:4173/roomlets/example/example.wasm')
+    assert.equal(roomlet.torrentUrl, 'http://127.0.0.1:4173/roomlets/example/example.torrent')
+    assert.equal(
+      new URL(roomletRuntimeMagnet(roomlet)).searchParams.get('ws'),
+      roomlet.webSeed
+    )
   })
 })

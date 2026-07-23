@@ -15,14 +15,16 @@ function string(value, name, max = 240) {
   return result
 }
 
-function httpsUrl(value, name, base) {
+function releaseUrl(value, name, base) {
   let result
   try {
     result = new URL(string(value, name, 2048), base)
   } catch {
     throw new Error(`invalid Roomlet ${name}`)
   }
-  if (result.protocol !== 'https:') throw new Error(`invalid Roomlet ${name}`)
+  const loopbackHttp = result.protocol === 'http:' &&
+    ['127.0.0.1', 'localhost', '[::1]'].includes(result.hostname)
+  if (result.protocol !== 'https:' && !loopbackHttp) throw new Error(`invalid Roomlet ${name}`)
   result.hash = ''
   return result
 }
@@ -68,7 +70,7 @@ export function normalizeRoomletReference(input, base = 'https://roomhash.github
   if (!SAFE_ID.test(id)) throw new Error('invalid Roomlet id')
   return Object.freeze({
     id,
-    manifestUrl: httpsUrl(input?.manifestUrl, 'manifest URL', base).href
+    manifestUrl: releaseUrl(input?.manifestUrl, 'manifest URL', base).href
   })
 }
 
@@ -100,17 +102,28 @@ export function normalizeRoomletManifest(input, reference) {
   const entrySize = Number(distribution?.entrySize)
   if (!Number.isSafeInteger(entrySize) || entrySize <= 0) throw new Error('invalid Roomlet entry size')
   const artifactBase = new URL('.', reference.manifestUrl)
-  const expectedEntryUrl = new URL(entry, artifactBase).href
-  const webSeed = httpsUrl(distribution?.webSeed, 'WebSeed').href
-  if (webSeed !== expectedEntryUrl) throw new Error('Roomlet WebSeed is not colocated with its manifest')
+  const expectedEntryUrl = new URL(entry, artifactBase)
+  const declaredWebSeed = releaseUrl(distribution?.webSeed, 'WebSeed')
+  const localMirror = expectedEntryUrl.protocol === 'http:'
+  if (
+    (!localMirror && declaredWebSeed.href !== expectedEntryUrl.href) ||
+    (localMirror && declaredWebSeed.pathname !== expectedEntryUrl.pathname)
+  ) {
+    throw new Error('Roomlet WebSeed is not colocated with its manifest')
+  }
   const torrentFile = string(distribution?.torrent, 'torrent filename', 128)
   if (!SAFE_FILE.test(torrentFile)) throw new Error('unsafe Roomlet torrent file')
-  const expectedTorrentUrl = new URL(torrentFile, artifactBase).href
-  const torrentUrl = httpsUrl(
+  const expectedTorrentUrl = new URL(torrentFile, artifactBase)
+  const declaredTorrentUrl = releaseUrl(
     distribution?.exactSource || distribution?.torrentUrl,
     'torrent URL'
-  ).href
-  if (torrentUrl !== expectedTorrentUrl) throw new Error('Roomlet torrent is not colocated with its manifest')
+  )
+  if (
+    (!localMirror && declaredTorrentUrl.href !== expectedTorrentUrl.href) ||
+    (localMirror && declaredTorrentUrl.pathname !== expectedTorrentUrl.pathname)
+  ) {
+    throw new Error('Roomlet torrent is not colocated with its manifest')
+  }
 
   let magnet
   try {
@@ -121,9 +134,14 @@ export function normalizeRoomletManifest(input, reference) {
   if (magnet.protocol !== 'magnet:' || magnet.searchParams.get('xt')?.toLowerCase() !== `urn:btih:${infoHash}`) {
     throw new Error('invalid Roomlet magnet')
   }
-  if (magnet.searchParams.get('ws') !== webSeed || magnet.searchParams.get('xs') !== torrentUrl) {
+  if (
+    magnet.searchParams.get('ws') !== declaredWebSeed.href ||
+    magnet.searchParams.get('xs') !== declaredTorrentUrl.href
+  ) {
     throw new Error('Roomlet magnet sources do not match its manifest')
   }
+  magnet.searchParams.set('ws', expectedEntryUrl.href)
+  magnet.searchParams.set('xs', expectedTorrentUrl.href)
 
   const name = string(input.name, 'name', 120)
   const description = String(input.description || '').trim().slice(0, 320)
@@ -140,8 +158,8 @@ export function normalizeRoomletManifest(input, reference) {
     entrySize,
     infoHash,
     manifestUrl: reference.manifestUrl,
-    webSeed,
-    torrentUrl,
+    webSeed: expectedEntryUrl.href,
+    torrentUrl: expectedTorrentUrl.href,
     magnet: magnet.href,
     manifest: Object.freeze({ ...input, i18n })
   })
