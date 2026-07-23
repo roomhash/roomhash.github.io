@@ -1,7 +1,7 @@
 /** RoomHash DOM rendering and workspace controls. */
 
 import { normalizeMimeType } from './message.js'
-import { loadAppstoreCatalog, localizeAppMetadata } from './appstore.js'
+import { loadRoomletCatalog, localizeRoomletMetadata } from './roomlets.js'
 import { applyDocumentTranslations, getLanguage, getLanguagePreference, localizeError, statusText, t } from './i18n.js'
 
 const DEMO_DISMISSED_KEY = 'roomhash:demo-notification-dismissed'
@@ -179,12 +179,12 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
     ,fileCabinet: byId('file-cabinet')
     ,closeFileCabinet: byId('close-file-cabinet')
     ,seedList: byId('seed-list')
-    ,appstoreAnchor: byId('appstore-anchor')
-    ,appstoreTrigger: byId('appstore-trigger')
-    ,appstorePopover: byId('appstore-popover')
-    ,appstoreClose: byId('appstore-close')
-    ,appstoreStatus: byId('appstore-status')
-    ,appstoreList: byId('appstore-list')
+    ,roomletAnchor: byId('roomlet-anchor')
+    ,roomletTrigger: byId('roomlet-trigger')
+    ,roomletPopover: byId('roomlet-popover')
+    ,roomletClose: byId('roomlet-close')
+    ,roomletStatus: byId('roomlet-status')
+    ,roomletList: byId('roomlet-list')
   }
 
   applyDocumentTranslations(doc)
@@ -250,96 +250,96 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
   }
   syncDemoNotification()
 
-  let appstoreApps = []
-  let appstoreLoad = null
-  let appstoreOpen = false
-  const renderAppstore = () => {
-    if (!els.appstoreList) return
-    els.appstoreList.replaceChildren()
-    for (const app of appstoreApps) {
-      const metadata = localizeAppMetadata(app, getLanguage())
+  let roomletApps = []
+  let roomletLoad = null
+  let roomletOpen = false
+  const renderRoomlet = () => {
+    if (!els.roomletList) return
+    els.roomletList.replaceChildren()
+    for (const app of roomletApps) {
+      const metadata = localizeRoomletMetadata(app, getLanguage())
       const card = doc.createElement('article')
-      card.className = 'appstore-card'
+      card.className = 'roomlet-card'
       const mark = doc.createElement('span')
-      mark.className = 'appstore-card-mark'
+      mark.className = 'roomlet-card-mark'
         mark.textContent = 'R'
       const copy = doc.createElement('span')
-      copy.className = 'appstore-card-copy'
+      copy.className = 'roomlet-card-copy'
       const name = doc.createElement('strong')
       name.textContent = metadata.name || app.name
       const summary = doc.createElement('span')
       summary.textContent = metadata.summary || app.summary
       const runtime = doc.createElement('small')
-      runtime.textContent = t(app.runtime === 'wasm' ? 'appstore.wasm' : 'appstore.web')
+      runtime.textContent = t(app.runtime === 'wasm' ? 'roomlet.wasm' : 'roomlet.web')
       copy.append(name, summary, runtime)
       const send = doc.createElement('button')
-      send.className = 'appstore-send'
+      send.className = 'roomlet-send'
       send.type = 'button'
-      send.textContent = t('appstore.send')
+      send.textContent = t('roomlet.send')
       send.addEventListener('click', async () => {
         send.disabled = true
-        send.textContent = t('appstore.sending')
+        send.textContent = t('roomlet.sending')
         try {
           await handlers.onShareApp?.(app)
-          setAppstoreOpen(false)
+          setRoomletOpen(false)
         } catch (error) {
-          if (els.appstoreStatus) {
-            els.appstoreStatus.hidden = false
-            els.appstoreStatus.textContent = t('appstore.unavailable', { message: localizeError(error) })
+          if (els.roomletStatus) {
+            els.roomletStatus.hidden = false
+            els.roomletStatus.textContent = t('roomlet.unavailable', { message: localizeError(error) })
           }
         } finally {
           send.disabled = false
-          send.textContent = t('appstore.send')
+          send.textContent = t('roomlet.send')
         }
       })
       card.append(mark, copy, send)
-      els.appstoreList.appendChild(card)
+      els.roomletList.appendChild(card)
     }
   }
-  const ensureAppstore = async () => {
-    if (appstoreApps.length) return
-    if (!appstoreLoad) appstoreLoad = loadAppstoreCatalog()
+  const ensureRoomlet = async () => {
+    if (roomletApps.length) return
+    if (!roomletLoad) roomletLoad = loadRoomletCatalog()
     try {
-      appstoreApps = await appstoreLoad
-      renderAppstore()
-      if (els.appstoreStatus) {
-        els.appstoreStatus.hidden = appstoreApps.length > 0
-        els.appstoreStatus.textContent = t(appstoreApps.length ? 'appstore.loading' : 'appstore.empty')
+      roomletApps = await roomletLoad
+      renderRoomlet()
+      if (els.roomletStatus) {
+        els.roomletStatus.hidden = roomletApps.length > 0
+        els.roomletStatus.textContent = t(roomletApps.length ? 'roomlet.loading' : 'roomlet.empty')
       }
     } catch (error) {
-      appstoreLoad = null
-      if (els.appstoreStatus) {
-        els.appstoreStatus.hidden = false
-        els.appstoreStatus.textContent = t('appstore.unavailable', { message: localizeError(error) })
+      roomletLoad = null
+      if (els.roomletStatus) {
+        els.roomletStatus.hidden = false
+        els.roomletStatus.textContent = t('roomlet.unavailable', { message: localizeError(error) })
       }
     }
   }
-  function setAppstoreOpen(open, { restoreFocus = true } = {}) {
-    appstoreOpen = Boolean(open)
-    if (els.appstorePopover) els.appstorePopover.hidden = !appstoreOpen
-    els.appstoreTrigger?.setAttribute('aria-expanded', String(appstoreOpen))
-    if (appstoreOpen) {
-      if (els.appstoreStatus && !appstoreApps.length) {
-        els.appstoreStatus.hidden = false
-        els.appstoreStatus.textContent = t('appstore.loading')
+  function setRoomletOpen(open, { restoreFocus = true } = {}) {
+    roomletOpen = Boolean(open)
+    if (els.roomletPopover) els.roomletPopover.hidden = !roomletOpen
+    els.roomletTrigger?.setAttribute('aria-expanded', String(roomletOpen))
+    if (roomletOpen) {
+      if (els.roomletStatus && !roomletApps.length) {
+        els.roomletStatus.hidden = false
+        els.roomletStatus.textContent = t('roomlet.loading')
       }
-      ensureAppstore()
-      els.appstorePopover?.focus()
+      ensureRoomlet()
+      els.roomletPopover?.focus()
     } else if (restoreFocus) {
-      els.appstoreTrigger?.focus()
+      els.roomletTrigger?.focus()
     }
   }
-  els.appstoreTrigger?.addEventListener('click', () => setAppstoreOpen(!appstoreOpen))
-  els.appstoreClose?.addEventListener('click', () => setAppstoreOpen(false))
+  els.roomletTrigger?.addEventListener('click', () => setRoomletOpen(!roomletOpen))
+  els.roomletClose?.addEventListener('click', () => setRoomletOpen(false))
   doc.addEventListener('pointerdown', (event) => {
-    if (appstoreOpen && !els.appstoreAnchor?.contains(event.target)) {
-      setAppstoreOpen(false, { restoreFocus: false })
+    if (roomletOpen && !els.roomletAnchor?.contains(event.target)) {
+      setRoomletOpen(false, { restoreFocus: false })
     }
   })
   doc.addEventListener('keydown', (event) => {
-    if (appstoreOpen && event.key === 'Escape') {
+    if (roomletOpen && event.key === 'Escape') {
       event.preventDefault()
-      setAppstoreOpen(false)
+      setRoomletOpen(false)
     }
   })
 
@@ -771,7 +771,7 @@ export function bindUi(doc, handlers, { moduleRegistry = null } = {}) {
       applyDocumentTranslations(doc)
       if (els.languageSelect) els.languageSelect.value = getLanguagePreference()
       syncCollapseAria()
-      renderAppstore()
+      renderRoomlet()
     }
   }
 }

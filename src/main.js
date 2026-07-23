@@ -17,8 +17,8 @@ import { normalizeNickname, resolveNickname } from './nickname.js'
 import { createMeshSession } from './network/mesh-session.js'
 import { RelayLimiter } from './network/gossip.js'
 import { RuntimeCapabilities } from './network/runtime-capabilities.js'
-import { DEMO_PIXEL_GARDEN, DEMO_VIDEO } from './demo-content.js'
-import { appstoreArtifactUrl, appstoreRuntimeMagnet } from './appstore.js'
+import { DEMO_VIDEO } from './demo-content.js'
+import { loadRoomletCatalog, roomletRuntimeMagnet } from './roomlets.js'
 import {
   appendMessage,
   loadAutoAddChannels,
@@ -561,28 +561,31 @@ async function boot() {
     async onShareDemoGame() {
       const session = activeSession()
       if (!session) throw new Error('channel is still connecting')
+      const app = (await loadRoomletCatalog()).find(({ id }) => id === 'org.roomhash.pixel-garden')
+      if (!app) throw new Error('Shared Garden is not published')
       await session.sendModule(WASM_APP_MODULE, {
-        ...DEMO_PIXEL_GARDEN,
-        instanceId: `pixel-garden:${activeChannel}`
+        magnet: roomletRuntimeMagnet(app),
+        title: `${app.name} - Roomlet`,
+        manifest: app.manifest,
+        files: [{ name: app.entry, size: app.entrySize, mime: 'application/wasm' }],
+        instanceId: `${app.id}:${activeChannel}`
       })
     },
     async onShareApp(app) {
       const session = activeSession()
       if (!session) throw new Error('channel is still connecting')
-      const response = await fetch(appstoreArtifactUrl(app, app.manifest), { cache: 'no-cache' })
-      if (!response.ok) throw new Error(`app manifest request failed (${response.status})`)
-      const manifest = await response.json()
-      if (manifest.id !== app.id || manifest.entry !== app.entry || manifest.runtime !== 'wasm') {
+      const manifest = app.manifest
+      if (manifest?.id !== app.id || manifest?.entry !== app.entry || manifest?.runtime !== 'wasm') {
         throw new Error('Roomlet manifest does not match its catalog entry')
       }
       await session.sendModule(WASM_APP_MODULE, {
-        magnet: appstoreRuntimeMagnet(app),
-        title: `${app.name} - RoomHash WASM app`,
+        magnet: roomletRuntimeMagnet(app),
+        title: `${app.name} - Roomlet`,
         manifest,
         files: [{ name: app.entry, size: app.entrySize, mime: 'application/wasm' }],
         instanceId: `${manifest.id}:${activeChannel}`
       })
-      ui?.setStatus({ key: 'appstore.sent' })
+      ui?.setStatus({ key: 'roomlet.sent' })
     },
     async onSeedFiles(files) {
       const session = activeSession()

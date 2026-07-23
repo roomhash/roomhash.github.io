@@ -54,6 +54,28 @@ The host is responsible for opening a temporary mapping, renewing or closing it,
 
 Chat extensions use versioned, data-only module messages and locally registered renderers. Received JavaScript is never executed.
 
+## Roomlets / 聊应用
+
+Roomlets are responsive, embeddable WASM applications shared through a chat
+channel. The RoomHash Web UI is only a generic host: application UI, input
+handling, business rules, replicated state, and merge behavior remain inside
+the WASM module.
+
+The Web UI repository contains only [`roomlets/catalog.json`](roomlets/catalog.json),
+a small index of independently published manifests. It does not copy Roomlet
+source code or release binaries. Current applications live in separate
+repositories and use stable reverse-domain IDs:
+
+- [`roomhash/pixel_garden`](https://github.com/roomhash/pixel_garden) — `org.roomhash.pixel-garden`
+- [`roomhash/whiteboard`](https://github.com/roomhash/whiteboard) — `org.roomhash.whiteboard`
+- [`roomhash/voting`](https://github.com/roomhash/voting) — `org.roomhash.voting`
+- [`roomhash/market`](https://github.com/roomhash/market) — `org.roomhash.market`
+
+Every indexed application must be WASM. Standalone HTML applications, iframe
+packages, and host-specific application logic are not accepted as Roomlets.
+Each application repository owns its `roomhash.json`, `.wasm`, `.torrent`, HTTP
+Seed, tests, and release lifecycle.
+
 ## Develop
 
 ```bash
@@ -64,7 +86,7 @@ npm run build    # static assets → dist/
 npm run preview  # serve dist/
 ```
 
-Deploy the contents of `dist/` to GitHub Pages (project or user site). Relative paths (`base: './'`) work under subpaths.
+Deploy the contents of `dist/` to GitHub Pages.
 
 ## Limits (by design)
 

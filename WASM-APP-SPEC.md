@@ -8,13 +8,13 @@ RoomHash treats an ordinary `.wasm` attachment as a downloadable torrent. It is
 executable only when a `roomhash.json` manifest declares a supported ABI and the
 downloaded bytes match the manifest SHA-256 fingerprint.
 
-## Roomlet catalog admission rule
+## Roomlet index admission rule
 
-The Roomlet catalog is WASM-only. Every catalog entry must use `runtime: "wasm"`,
+The Roomlet index is WASM-only. Every indexed manifest must use `runtime: "wasm"`,
 provide a `roomhash.app/v1` manifest, target a supported embedded ABI, and keep
 its application state and business logic inside WASM. Standalone web bundles,
 external application links, and iframe-based applications are not eligible for
-the Roomlet catalog. RoomHash acts as the bounded host and transport layer; it is not a
+the Roomlet index. RoomHash acts as the bounded host and transport layer; it is not a
 place to move an application's business logic into page JavaScript.
 
 App releases must also be WebUI-independent. App-specific HTML/CSS/JavaScript,
@@ -24,6 +24,11 @@ contract documented in the workspace `wasm-app-sdk/ABI.md`: WASM owns the
 responsive scene, hit testing, focus/draft state, validation, and domain
 behavior; RoomHash is only a generic canvas/input/P2P/storage/media adapter. The
 same `.wasm` must run in a third-party conforming host without recompilation.
+
+The RoomHash Web UI publishes only a lightweight index containing each stable
+application ID and its HTTPS manifest URL. An application repository owns its
+source, release artifacts, manifest, torrent, HTTP Seed, CI, and versioning.
+Neither RoomHash Pages nor a `/demo` directory is an application release host.
 
 ## Manifest
 
@@ -42,7 +47,15 @@ same `.wasm` must run in a third-party conforming host without recompilation.
   "abi": "roomhash-pixel-grid-v1",
   "entry": "pixel_garden.wasm",
   "sha256": "hex-encoded-sha256",
-  "permissions": ["channel.messages", "storage:256kb"]
+  "permissions": ["channel.messages", "storage:256kb"],
+  "distribution": {
+    "torrent": "pixel_garden.torrent",
+    "infoHash": "40-hex-infohash",
+    "entrySize": 1077,
+    "webSeed": "https://raw.githubusercontent.com/roomhash/pixel_garden/main/dist/pixel_garden.wasm",
+    "exactSource": "https://raw.githubusercontent.com/roomhash/pixel_garden/main/dist/pixel_garden.torrent",
+    "magnet": "magnet:?xt=urn:btih:..."
+  }
 }
 ```
 
@@ -50,7 +63,7 @@ To publish a local app, select `roomhash.json` and its WASM entry together. An
 invalid or unsupported declaration falls back to an ordinary downloadable
 attachment.
 
-Catalog metadata and manifests must provide both `i18n.en` and `i18n.zh-CN`.
+Indexed manifests must provide both `i18n.en` and `i18n.zh-CN`.
 The receiving client selects the localized name and description from its own
 language setting; canonical top-level metadata remains the English fallback.
 

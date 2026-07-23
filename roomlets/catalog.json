@@ -1,0 +1,21 @@
+{
+  "schema": "roomhash.roomlets/v1",
+  "roomlets": [
+    {
+      "id": "org.roomhash.pixel-garden",
+      "manifestUrl": "https://raw.githubusercontent.com/roomhash/pixel_garden/main/dist/roomhash.json"
+    },
+    {
+      "id": "org.roomhash.whiteboard",
+      "manifestUrl": "https://raw.githubusercontent.com/roomhash/whiteboard/main/dist/roomhash.json"
+    },
+    {
+      "id": "org.roomhash.voting",
+      "manifestUrl": "https://raw.githubusercontent.com/roomhash/voting/main/dist/roomhash.json"
+    },
+    {
+      "id": "org.roomhash.market",
+      "manifestUrl": "https://raw.githubusercontent.com/roomhash/market/main/dist/roomhash.json"
+    }
+  ]
+}

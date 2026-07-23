@@ -1,13 +1,13 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { copyFileSync, cpSync, mkdirSync } from 'node:fs'
+import { copyFileSync, mkdirSync } from 'node:fs'
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const demoAssets = [
   'demo/video/file_example_MP4_640_3MG.mp4',
   'demo/video/file_example_MP4_640_3MG.torrent',
-  'demo/wasm/hello_world.wasm'
+  'roomlets/catalog.json'
 ]
 
 function copyPublishedAssets() {
@@ -19,7 +19,6 @@ function copyPublishedAssets() {
         mkdirSync(resolve(destination, '..'), { recursive: true })
         copyFileSync(resolve(root, asset), destination)
       }
-      cpSync(resolve(root, 'appstore'), resolve(root, 'dist', 'appstore'), { recursive: true })
     }
   }
 }

@@ -1,4 +1,4 @@
-import { localizeAppMetadata } from '../appstore.js'
+import { localizeRoomletMetadata } from '../roomlets.js'
 import { getLanguage, localizeError, t } from '../i18n.js'
 import { renderWasmFormView } from './wasm-form-ui.js'
 import { paintPortableScene } from './portable-surface.js'
@@ -12,7 +12,7 @@ const TRUST_PREFIX = 'roomhash:wasm-trust:'
 const TRUST_VERSION = 'v2'
 
 function appDisplayName(manifest, fallback = '') {
-  return localizeAppMetadata(manifest, getLanguage()).name || fallback || manifest?.id || 'WASM App'
+  return localizeRoomletMetadata(manifest, getLanguage()).name || fallback || manifest?.id || 'WASM App'
 }
 
 function hex(bytes) {
